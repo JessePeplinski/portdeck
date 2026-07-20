@@ -86,7 +86,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed provider all
 
 The production pipeline is deliberately separate from `build:mac`, `run-dev-app.sh`, the sandbox probe, and the local ad-hoc candidate. It:
 
-1. Requires an approved `.icns` and its approved SHA-256, a valid Developer ID Application identity, and a notarytool Keychain profile.
+1. Uses the approved, checksum-pinned production `.icns` in `portdeck-mac/Resources`, and requires a valid Developer ID Application identity and notarytool Keychain profile.
 2. Builds the existing arm64 release app and installs the exact managed provider dependency tree directly from the root lockfile without running package scripts or copying the checkout's `node_modules`.
 3. Downloads only the pinned arm64 Railway and flyctl archives after verifying their published SHA-256 digests.
 4. Signs every nested Mach-O individually with hardened runtime and secure timestamps, then signs the outer app without App Sandbox.

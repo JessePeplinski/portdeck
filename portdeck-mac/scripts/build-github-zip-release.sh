@@ -21,8 +21,8 @@ fi
 
 signing_identity="$PORTDECK_SIGNING_IDENTITY"
 notary_profile="$PORTDECK_NOTARYTOOL_PROFILE"
-release_icon="$PORTDECK_RELEASE_ICON"
-approved_icon_sha256="$PORTDECK_RELEASE_ICON_SHA256"
+release_icon="${PORTDECK_RELEASE_ICON:-$approved_release_icon}"
+approved_icon_sha256="${PORTDECK_RELEASE_ICON_SHA256:-$approved_release_icon_sha256}"
 node_entitlements="$package_root/Config/PortDeckNodeRelease.entitlements"
 
 PORTDECK_RELEASE_VERSION="$release_version" \

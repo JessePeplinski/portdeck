@@ -7,8 +7,9 @@ source "$script_root/release-config.sh"
 
 signing_identity="${PORTDECK_SIGNING_IDENTITY:-}"
 notary_profile="${PORTDECK_NOTARYTOOL_PROFILE:-}"
-release_icon="${PORTDECK_RELEASE_ICON:-}"
-approved_icon_sha256="${PORTDECK_RELEASE_ICON_SHA256:-}"
+release_icon="${PORTDECK_RELEASE_ICON:-$approved_release_icon}"
+approved_icon_sha256="${PORTDECK_RELEASE_ICON_SHA256:-$approved_release_icon_sha256}"
+icon_preflight_root="${TMPDIR:-/tmp}/portdeck-icon-preflight.$$.iconset"
 blockers=0
 
 block() {
@@ -27,20 +28,20 @@ for xcode_tool in notarytool stapler; do
   fi
 done
 
-if [[ -z "$release_icon" || ! -f "$release_icon" ]]; then
-  block "set PORTDECK_RELEASE_ICON to the approved production .icns file"
+if [[ "$approved_icon_sha256" != "$approved_release_icon_sha256" ]]; then
+  block "PORTDECK_RELEASE_ICON_SHA256 does not match the pinned approved production icon"
+elif [[ ! -f "$release_icon" ]]; then
+  block "the approved production .icns is unavailable"
 elif [[ "${release_icon##*.}" != "icns" ]]; then
   block "PORTDECK_RELEASE_ICON must point to an .icns file"
-elif [[ -z "$approved_icon_sha256" ]]; then
-  block "set PORTDECK_RELEASE_ICON_SHA256 to the approved icon checksum"
 else
   actual_icon_sha256="$(/usr/bin/shasum -a 256 "$release_icon" | /usr/bin/awk '{print $1}')"
   if [[ "$actual_icon_sha256" != "$approved_icon_sha256" ]]; then
     block "the production icon does not match PORTDECK_RELEASE_ICON_SHA256"
-  elif ! /usr/bin/iconutil --convert iconset --output "${TMPDIR:-/tmp}/portdeck-icon-preflight.$$" "$release_icon" >/dev/null 2>&1; then
+  elif ! /usr/bin/iconutil --convert iconset --output "$icon_preflight_root" "$release_icon" >/dev/null 2>&1; then
     block "the approved production icon is not a valid .icns"
   else
-    /bin/rm -rf "${TMPDIR:-/tmp}/portdeck-icon-preflight.$$"
+    /bin/rm -rf "$icon_preflight_root"
     echo "OK: approved production icon checksum and format"
   fi
 fi
