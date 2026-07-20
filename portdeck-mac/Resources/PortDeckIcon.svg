@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="170" y1="110" x2="840" y2="920" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#101F31"/>
+      <stop offset="0.52" stop-color="#08121D"/>
+      <stop offset="1" stop-color="#04090E"/>
+    </linearGradient>
+    <radialGradient id="blueGlow" cx="0" cy="0" r="1" gradientTransform="translate(760 188) rotate(127) scale(590 520)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2F6FD8" stop-opacity="0.34"/>
+      <stop offset="0.6" stop-color="#173A67" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#08111A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edge" x1="160" y1="90" x2="810" y2="970" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C8E0FF" stop-opacity="0.23"/>
+      <stop offset="0.42" stop-color="#6AA4FF" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.48"/>
+    </linearGradient>
+    <linearGradient id="cursor" x1="530" y1="680" x2="755" y2="680" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#82B5FF"/>
+      <stop offset="1" stop-color="#4D86FF"/>
+    </linearGradient>
+    <filter id="tileShadow" x="-20%" y="-20%" width="140%" height="150%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="30" flood-color="#000000" flood-opacity="0.52"/>
+    </filter>
+    <filter id="markShadow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#tileShadow)">
+    <rect x="52" y="44" width="920" height="920" rx="214" fill="url(#tile)"/>
+    <rect x="52" y="44" width="920" height="920" rx="214" fill="url(#blueGlow)"/>
+    <rect x="55" y="47" width="914" height="914" rx="211" fill="none" stroke="url(#edge)" stroke-width="6"/>
+  </g>
+
+  <g filter="url(#markShadow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M302 326 L494 512 L302 698" stroke="#F4F7FB" stroke-width="80"/>
+    <path d="M544 698 H746" stroke="url(#cursor)" stroke-width="80"/>
+  </g>
+</svg>

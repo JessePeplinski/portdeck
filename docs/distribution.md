@@ -41,14 +41,15 @@ The production ZIP contract includes:
 
 `npm run preflight:mac:github-release` performs a metadata-only readiness check. It requires:
 
-- `PORTDECK_RELEASE_ICON` pointing to the approved production `.icns`;
-- `PORTDECK_RELEASE_ICON_SHA256` matching that approved file;
+- the approved production `portdeck-mac/Resources/PortDeck.icns`, whose SHA-256 is pinned in `release-config.sh`;
 - `PORTDECK_SIGNING_IDENTITY` naming an available Developer ID Application identity;
 - `PORTDECK_NOTARYTOOL_PROFILE` naming an available notarytool Keychain profile.
 
+`PORTDECK_RELEASE_ICON` and `PORTDECK_RELEASE_ICON_SHA256` remain optional path/checksum overrides for release validation, but an override must match the approved checksum. The editable vector source is `portdeck-mac/Resources/PortDeckIcon.svg`.
+
 The preflight does not sign code, read private-key material, authenticate to Apple, or submit an artifact. Do not put any credential values in the repository or command line.
 
-After explicit approval to use both credentials and upload to Apple, run the guarded build in the same shell where the four non-secret selectors above are set:
+After explicit approval to use both credentials and upload to Apple, run the guarded build in the same shell where the two non-secret credential selectors above are set:
 
 ```bash
 PORTDECK_APPROVE_SIGNING_AND_NOTARIZATION=YES npm run build:mac:github-release
