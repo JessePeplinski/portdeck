@@ -1,0 +1,42 @@
+{
+  "name": "portdeck-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "portdeck-app"
+  ],
+  "scripts": {
+    "build": "npm run build:app && npm run build:mac",
+    "build:app": "npm run build -w portdeck-app",
+    "build:mac": "swift build --package-path portdeck-mac",
+    "build:mac:github-release": "portdeck-mac/scripts/build-github-zip-release.sh",
+    "build:mac:release": "portdeck-mac/scripts/build-release-app.sh",
+    "build:mac:sandbox-probe": "portdeck-mac/scripts/build-sandbox-probe-app.sh",
+    "test": "npm run test:app && npm run test:mac",
+    "test:app": "npm run test -w portdeck-app",
+    "test:mac": "swift test --package-path portdeck-mac",
+    "typecheck": "npm run typecheck:app",
+    "typecheck:app": "npm run typecheck -w portdeck-app",
+    "verify": "npm run build && npm run test",
+    "verify:mac:github-release": "portdeck-mac/scripts/verify-release-app.sh --production-zip",
+    "preflight:mac:github-release": "portdeck-mac/scripts/preflight-github-zip-release.sh",
+    "verify:mac:release": "portdeck-mac/scripts/verify-release-app.sh"
+  },
+  "devDependencies": {
+    "spdx-license-list": "6.11.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@railway/cli": "5.26.2",
+    "convex": "1.42.1",
+    "netlify-cli": "26.2.0",
+    "supabase": "2.109.1",
+    "wrangler": "4.111.0"
+  },
+  "overrides": {
+    "@railway/cli": {
+      "tar": "7.5.20"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "portdeck",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "portdeck": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "bundle:helper": "node scripts/build-bundled-helper.mjs",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "execa": "^9.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "esbuild": "0.27.7",
+    "tsx": "^4.19.4",
+    "vitest": "^3.2.2"
+  }
+}
