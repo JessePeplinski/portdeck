@@ -34,15 +34,38 @@ public protocol VercelCLIClientProtocol: Sendable {
 }
 
 public struct SystemVercelCommandRunner: VercelCommandRunning {
-  public init() {}
+  private static let fallbackPath = "/usr/bin:/bin:/usr/sbin:/sbin"
+
+  private let environment: [String: String]
+  private let bundleResourceURL: URL?
+
+  public init(
+    environment: [String: String] = ProcessInfo.processInfo.environment,
+    bundleResourceURL: URL? = Bundle.main.resourceURL
+  ) {
+    self.environment = environment
+    self.bundleResourceURL = bundleResourceURL
+  }
 
   public func run(executableURL: URL, arguments: [String]) async throws -> VercelCommandResult {
-    try await Task.detached {
-      try Self.runSync(executableURL: executableURL, arguments: arguments)
+    let environment = environment
+    let bundleResourceURL = bundleResourceURL
+    return try await Task.detached {
+      try Self.runSync(
+        executableURL: executableURL,
+        arguments: arguments,
+        environment: environment,
+        bundleResourceURL: bundleResourceURL
+      )
     }.value
   }
 
-  private static func runSync(executableURL: URL, arguments: [String]) throws -> VercelCommandResult {
+  private static func runSync(
+    executableURL: URL,
+    arguments: [String],
+    environment: [String: String],
+    bundleResourceURL: URL?
+  ) throws -> VercelCommandResult {
     let fileManager = FileManager.default
     let token = UUID().uuidString
     let stdoutURL = fileManager.temporaryDirectory.appendingPathComponent("portdeck-vercel-\(token)-stdout")
@@ -67,6 +90,12 @@ public struct SystemVercelCommandRunner: VercelCommandRunning {
     let process = Process()
     process.executableURL = executableURL
     process.arguments = arguments
+    process.environment = commandEnvironment(
+      executableURL: executableURL,
+      environment: environment,
+      bundleResourceURL: bundleResourceURL,
+      fileManager: fileManager
+    )
     process.currentDirectoryURL = fileManager.homeDirectoryForCurrentUser
     process.standardOutput = stdoutHandle
     process.standardError = stderrHandle
@@ -88,6 +117,33 @@ public struct SystemVercelCommandRunner: VercelCommandRunning {
       stderr: try Data(contentsOf: stderrURL),
       terminationStatus: process.terminationStatus
     )
+  }
+
+  private static func commandEnvironment(
+    executableURL: URL,
+    environment: [String: String],
+    bundleResourceURL: URL?,
+    fileManager: FileManager
+  ) -> [String: String] {
+    var commandEnvironment = environment
+    var pathEntries = [executableURL.deletingLastPathComponent().standardizedFileURL.path]
+
+    if let bundleResourceURL {
+      let packagedNodeDirectory = bundleResourceURL
+        .appendingPathComponent(PortdeckRuntimeResolver.packagedRuntimeRelativePath)
+        .appendingPathComponent("bin")
+      let packagedNode = packagedNodeDirectory.appendingPathComponent("node")
+      if fileManager.isExecutableFile(atPath: packagedNode.path) {
+        pathEntries.append(packagedNodeDirectory.standardizedFileURL.path)
+      }
+    }
+
+    pathEntries.append(contentsOf: (environment["PATH"] ?? fallbackPath).split(separator: ":").map(String.init))
+    var seenEntries = Set<String>()
+    commandEnvironment["PATH"] = pathEntries
+      .filter { !$0.isEmpty && seenEntries.insert($0).inserted }
+      .joined(separator: ":")
+    return commandEnvironment
   }
 }
 

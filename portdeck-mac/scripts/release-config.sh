@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-# Shared, non-secret inputs for the first PortDeck direct-download beta.
-release_version="${PORTDECK_RELEASE_VERSION:-0.1.0-beta.1}"
+# Shared, non-secret inputs for the current PortDeck direct-download beta.
+release_version="${PORTDECK_RELEASE_VERSION:-0.1.0-beta.2}"
 release_tag="${PORTDECK_RELEASE_TAG:-v${release_version}}"
 marketing_version="${PORTDECK_MARKETING_VERSION:-0.1.0}"
-bundle_version="${PORTDECK_BUNDLE_VERSION:-1}"
+bundle_version="${PORTDECK_BUNDLE_VERSION:-2}"
 release_architecture="arm64"
 minimum_macos_version="14.0"
 

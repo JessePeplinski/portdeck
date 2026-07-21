@@ -3,7 +3,7 @@
 PortDeck is a native macOS menu-bar command center for local development services, saved projects, and read-only deployment-provider health.
 
 > [!IMPORTANT]
-> PortDeck is in pre-release development. `v0.1.0-beta.1` is the first signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production ZIP artifacts remain separate workflows.
+> PortDeck is in pre-release development. `v0.1.0-beta.2` is the current signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production ZIP artifacts remain separate workflows.
 
 ## What PortDeck does
 
@@ -16,16 +16,16 @@ Provider views are observation surfaces. They use existing authenticated session
 
 ## Download the Apple Silicon beta
 
-The first beta supports arm64 Apple Silicon Macs running macOS 14 or newer. The versioned GitHub Release paths are:
+The current beta supports arm64 Apple Silicon Macs running macOS 14 or newer. The versioned GitHub Release paths are:
 
-- [`PortDeck-0.1.0-beta.1-macos-arm64.zip`](../../releases/download/v0.1.0-beta.1/PortDeck-0.1.0-beta.1-macos-arm64.zip)
-- [`PortDeck-0.1.0-beta.1-macos-arm64.zip.sha256`](../../releases/download/v0.1.0-beta.1/PortDeck-0.1.0-beta.1-macos-arm64.zip.sha256)
+- [`PortDeck-0.1.0-beta.2-macos-arm64.zip`](../../releases/download/v0.1.0-beta.2/PortDeck-0.1.0-beta.2-macos-arm64.zip)
+- [`PortDeck-0.1.0-beta.2-macos-arm64.zip.sha256`](../../releases/download/v0.1.0-beta.2/PortDeck-0.1.0-beta.2-macos-arm64.zip.sha256)
 
 Download both files into the same directory, then verify and extract them:
 
 ```bash
-shasum -a 256 -c PortDeck-0.1.0-beta.1-macos-arm64.zip.sha256
-ditto -x -k PortDeck-0.1.0-beta.1-macos-arm64.zip .
+shasum -a 256 -c PortDeck-0.1.0-beta.2-macos-arm64.zip.sha256
+ditto -x -k PortDeck-0.1.0-beta.2-macos-arm64.zip .
 open PortDeck.app
 ```
 

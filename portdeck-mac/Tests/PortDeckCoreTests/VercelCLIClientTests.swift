@@ -62,6 +62,60 @@ import Testing
   #expect(await runner.receivedArguments.isEmpty)
 }
 
+@Test func systemVercelRunnerFindsNodeBesideCLIAndPreservesExistingPath() async throws {
+  let fixture = try VercelRunnerFixture()
+  defer { fixture.remove() }
+
+  let cliDirectory = fixture.root.appendingPathComponent("external/bin")
+  _ = try fixture.makeExecutable(
+    "external/bin/node",
+    contents: "#!/bin/sh\nexec /bin/sh \"$@\"\n"
+  )
+  let vercel = try fixture.makeExecutable(
+    "external/bin/vercel",
+    contents: "#!/usr/bin/env node\ncommand -v portdeck-path-sentinel >/dev/null || exit 41\nprintf 'Vercel CLI 50.38.1\\n'\n"
+  )
+  let existingPath = fixture.root.appendingPathComponent("existing/bin")
+  _ = try fixture.makeExecutable(
+    "existing/bin/portdeck-path-sentinel",
+    contents: "#!/bin/sh\nexit 0\n"
+  )
+  let runner = SystemVercelCommandRunner(
+    environment: ["PATH": "\(existingPath.path):/usr/bin:/bin"],
+    bundleResourceURL: nil
+  )
+
+  let result = try await runner.run(executableURL: vercel, arguments: ["--version"])
+
+  #expect(result.terminationStatus == 0)
+  #expect(String(data: result.stdout, encoding: .utf8) == "Vercel CLI 50.38.1\n")
+  #expect(FileManager.default.isExecutableFile(atPath: cliDirectory.appendingPathComponent("node").path))
+}
+
+@Test func systemVercelRunnerFallsBackToPackagedNodeWithGUIPath() async throws {
+  let fixture = try VercelRunnerFixture()
+  defer { fixture.remove() }
+
+  let resourceURL = fixture.root.appendingPathComponent("PortDeck.app/Contents/Resources")
+  _ = try fixture.makeExecutable(
+    "PortDeck.app/Contents/Resources/PortDeckRuntime/bin/node",
+    contents: "#!/bin/sh\nexec /bin/sh \"$@\"\n"
+  )
+  let vercel = try fixture.makeExecutable(
+    "external/vercel",
+    contents: "#!/usr/bin/env node\nprintf 'Vercel CLI 50.38.1\\n'\n"
+  )
+  let runner = SystemVercelCommandRunner(
+    environment: ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"],
+    bundleResourceURL: resourceURL
+  )
+
+  let result = try await runner.run(executableURL: vercel, arguments: ["--version"])
+
+  #expect(result.terminationStatus == 0)
+  #expect(String(data: result.stdout, encoding: .utf8) == "Vercel CLI 50.38.1\n")
+}
+
 @Test func fetchesEveryVercelProjectPageWithoutPerProjectRequests() async throws {
   let runner = FakeVercelCommandRunner(responses: [
     commandResult(
@@ -201,4 +255,29 @@ private func commandResult(_ output: String, error: String = "", status: Int32 =
     stderr: Data(error.utf8),
     terminationStatus: status
   )
+}
+
+private struct VercelRunnerFixture {
+  let root: URL
+
+  init() throws {
+    root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("portdeck-vercel-runner-tests-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+  }
+
+  func makeExecutable(_ relativePath: String, contents: String) throws -> URL {
+    let url = root.appendingPathComponent(relativePath)
+    try FileManager.default.createDirectory(
+      at: url.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try Data(contents.utf8).write(to: url)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+    return url
+  }
+
+  func remove() {
+    try? FileManager.default.removeItem(at: root)
+  }
 }
