@@ -162,6 +162,8 @@ if /usr/bin/find "$app_bundle" -type f \( \
 \) -print -quit | /usr/bin/grep -q .; then
   fail "bundle contains a credential or auth-store file"
 fi
+[[ ! -e "$provider_root/node/node_modules/@fastify/static/test" ]] \
+  || fail "bundle contains @fastify/static test-only archive fixtures"
 
 while IFS= read -r -d '' symlink; do
   resolved_target="$(/bin/realpath "$symlink" 2>/dev/null)" \
