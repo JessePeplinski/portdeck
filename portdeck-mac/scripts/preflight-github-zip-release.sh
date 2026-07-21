@@ -61,12 +61,16 @@ fi
 
 if [[ -z "$notary_profile" ]]; then
   block "set PORTDECK_NOTARYTOOL_PROFILE to a notarytool Keychain profile"
-elif ! /usr/bin/security find-generic-password \
+elif /usr/bin/security find-generic-password \
   -s com.apple.gke.notary.tool \
   -a "$notary_profile" >/dev/null 2>&1; then
-  block "the requested notarytool Keychain profile is unavailable"
-else
   echo "OK: requested notarytool Keychain profile metadata is available"
+elif xcrun notarytool history \
+  --keychain-profile "$notary_profile" \
+  --output-format json >/dev/null 2>&1; then
+  echo "OK: requested notarytool Keychain profile authenticated with Apple"
+else
+  block "the requested notarytool Keychain profile is unavailable or failed read-only authentication"
 fi
 
 if [[ "$release_tag" != "v${release_version}" ]]; then

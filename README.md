@@ -93,7 +93,7 @@ The production pipeline is deliberately separate from `build:mac`, `run-dev-app.
 5. Notarizes a temporary ZIP, inspects the accepted log, staples the ticket to `PortDeck.app`, and creates the final ZIP with `ditto -c -k --keepParent`.
 6. Verifies the final ZIP outside the repository under simulated quarantine, isolated state and home directories, and a scrubbed `PATH` before generating the release handoff.
 
-Run the metadata-only preflight with `npm run preflight:mac:github-release`. The credential-using build is additionally guarded by `PORTDECK_APPROVE_SIGNING_AND_NOTARIZATION=YES` and must not run until the release owner explicitly approves signing and the Apple upload. See [`docs/distribution.md`](docs/distribution.md) for the complete commands, fixed inputs, and verification contract.
+Run the release preflight with `npm run preflight:mac:github-release`. It checks local signing metadata and validates the selected notarytool profile with a silent, read-only Apple Notary history request when the profile is not visible through the legacy Keychain lookup; it never uploads an artifact. The signing-and-notarization build is additionally guarded by `PORTDECK_APPROVE_SIGNING_AND_NOTARIZATION=YES` and must not run until the release owner explicitly approves signing and the Apple upload. See [`docs/distribution.md`](docs/distribution.md) for the complete commands, fixed inputs, and verification contract.
 
 The first update path is a manual download from the latest GitHub Release. A DMG, universal/x86_64 package, Homebrew formula, in-app updater, and App Store package are not part of this beta.
 
