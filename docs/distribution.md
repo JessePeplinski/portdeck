@@ -6,10 +6,10 @@ PortDeck's first public distribution target is a Developer ID signed and notariz
 
 Use a Developer ID signed and notarized macOS app distributed as a versioned ZIP through GitHub Releases, with the PortDeck site linking to the latest release. This path fits the product because PortDeck needs to inspect local ports, processes, Git repositories, worktrees, and Docker state.
 
-The first beta is `v0.1.0-beta.1`, arm64-only for Apple Silicon Macs running macOS 14 or newer:
+The current beta is `v0.1.0-beta.2`, arm64-only for Apple Silicon Macs running macOS 14 or newer:
 
-- app asset: [`PortDeck-0.1.0-beta.1-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.1/PortDeck-0.1.0-beta.1-macos-arm64.zip)
-- checksum asset: [`PortDeck-0.1.0-beta.1-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.1/PortDeck-0.1.0-beta.1-macos-arm64.zip.sha256)
+- app asset: [`PortDeck-0.1.0-beta.2-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.2/PortDeck-0.1.0-beta.2-macos-arm64.zip)
+- checksum asset: [`PortDeck-0.1.0-beta.2-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.2/PortDeck-0.1.0-beta.2-macos-arm64.zip.sha256)
 
 A DMG, universal/x86_64 build, Homebrew formula, Sparkle or another updater, and App Store package are explicitly outside this release. Universal packaging is a later compatibility slice after the complete runtime bundle is proven on Apple Silicon.
 
@@ -59,7 +59,7 @@ The command builds the local arm64 candidate, adds the approved icon and locked 
 
 The Node runtime is exactly 24.18.0 from `https://nodejs.org/download/release/v24.18.0/node-v24.18.0-darwin-arm64.tar.gz`, SHA-256 `e1a97e14c99c803e96c7339403282ea05a499c32f8d83defe9ef5ec66f979ed1`. Provider npm dependencies are installed directly into the staged app from the root lockfile with lifecycle scripts and user/global npm configuration disabled. The pipeline does not copy the checkout's `node_modules`, npm credentials, provider auth stores, monitored-project files, or local PortDeck state. Railway and flyctl use their pinned official arm64 archives and checksums recorded in `release-config.sh`.
 
-Apple bundle versions remain numeric: `CFBundleShortVersionString` is `0.1.0` and `CFBundleVersion` is `1`. The prerelease identity is carried separately by `PortDeckReleaseVersion=0.1.0-beta.1` and `PortDeckReleaseTag=v0.1.0-beta.1`, and the verifier requires all four values. This preserves Apple's bundle-version format while tying the artifact to the exact GitHub tag.
+Apple bundle versions remain numeric: `CFBundleShortVersionString` is `0.1.0` and `CFBundleVersion` is `2`. The prerelease identity is carried separately by `PortDeckReleaseVersion=0.1.0-beta.2` and `PortDeckReleaseTag=v0.1.0-beta.2`, and the verifier requires all four values. This preserves Apple's bundle-version format while tying the artifact to the exact GitHub tag.
 
 Two installed packages are deliberately omitted and recorded in the runtime manifest. `fsevents` is an optional watcher dependency whose upstream binary is universal and is not used by PortDeck's read-only command allowlists. `@netlify/ai@0.4.2` is not loaded by PortDeck's `sites:list` or `listSiteDeploys` commands and upstream publishes it without a license declaration or license file, so PortDeck does not redistribute it. The staging smoke runs both allowed Netlify command modules from a neutral directory after pruning to prove that the reduced runtime reaches the expected unauthenticated behavior rather than a missing-module failure.
 
@@ -71,7 +71,7 @@ Every redistributed npm package has explicit license evidence in the runtime man
 
 `verify-release-app.sh --production-zip <zip> <sha256>` extracts the ZIP outside the checkout as a user download, applies simulated quarantine, and requires matching bundle/tag metadata, the approved icon checksum, arm64-only Mach-O code, exact runtime versions, contained symlinks, complete licenses/notices, Developer ID signatures, secure timestamps, hardened runtime, no App Sandbox, a valid stapled ticket, and Gatekeeper acceptance. It uses temporary `HOME` and `PORTDECK_STATE_DIR` values with a scrubbed `PATH`, then exercises status discovery, save, start, restart, confirmed port switching, stop, managed runtime version execution, and app launch.
 
-After the PR is merged and release publication is explicitly approved, create `v0.1.0-beta.1` as a GitHub prerelease and attach only the ZIP and SHA-256 file. Download both assets back into a new temporary directory and rerun the production verifier against those downloaded files. The release is incomplete until the downloaded checksum matches, Gatekeeper accepts the quarantined extracted app, the app launches, and the downloaded Local/Projects lifecycle passes.
+After the PR is merged and release publication is explicitly approved, create `v0.1.0-beta.2` as a GitHub prerelease and attach only the ZIP and SHA-256 file. Download both assets back into a new temporary directory and rerun the production verifier against those downloaded files. The release is incomplete until the downloaded checksum matches, Gatekeeper accepts the quarantined extracted app, the app launches, and the downloaded Local/Projects lifecycle passes.
 
 ## Mac App Store Target
 
@@ -97,7 +97,7 @@ Distribution work should not change product detection behavior by itself. The re
 
 ## Vercel Provider Boundary
 
-The direct-download Vercel view is an optional integration that uses the user's installed Vercel CLI 50.5.1 or newer and its existing authenticated session. Resolution checks the authoritative `PORTDECK_VERCEL_BIN` development/test override, the user's login shell, then standard Homebrew paths. PortDeck invokes only the documented read-only API requests, never bundles credentials, and remains usable when the CLI is missing or authentication has expired.
+The direct-download Vercel view is an optional integration that uses the user's installed Vercel CLI 50.5.1 or newer and its existing authenticated session. Resolution checks the authoritative `PORTDECK_VERCEL_BIN` development/test override, the user's login shell, then standard Homebrew paths. When invoking the resolved CLI, PortDeck prepends the CLI's directory and then its packaged Node runtime directory to the inherited command `PATH`; this lets Node-based Vercel launchers use their co-installed Node first while remaining functional in Finder's restricted environment. PortDeck invokes only the documented read-only API requests, never bundles credentials, and remains usable when the CLI is missing or authentication has expired.
 
 This external executable and credential-access path is not part of the App Store sandbox baseline. A future App Store build must provide a separately reviewed sandbox-compatible authentication/API implementation or omit the provider; it must not add Vercel mutation controls as a packaging workaround.
 

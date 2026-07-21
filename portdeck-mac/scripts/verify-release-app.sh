@@ -120,7 +120,7 @@ gatekeeper_output="$(/bin/cat "$gatekeeper_output_file")"
 
 swift test \
   --package-path "$package_root" \
-  --filter 'RuntimeResolver|degradesManagedRuntimeFailuresWithoutLosingProductionMetadata|ModelMapsSetupFailures|reportsCloudflareSetupStates|reportsFreshSupabaseRuntimeAuthenticationRateLimitAndFailureStates'
+  --filter 'RuntimeResolver|Vercel|degradesManagedRuntimeFailuresWithoutLosingProductionMetadata|ModelMapsSetupFailures|reportsCloudflareSetupStates|reportsFreshSupabaseRuntimeAuthenticationRateLimitAndFailureStates'
 
 verification_root="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/portdeck-release-verify.XXXXXX")"
 copied_app="$verification_root/PortDeck.app"

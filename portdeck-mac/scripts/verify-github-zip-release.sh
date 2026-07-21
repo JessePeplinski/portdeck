@@ -399,7 +399,7 @@ run_provider "$provider_root/netlify/bin/netlify" --version | /usr/bin/grep -Fq 
 
 swift test \
   --package-path "$package_root" \
-  --filter 'RuntimeResolver|degradesManagedRuntimeFailuresWithoutLosingProductionMetadata|ModelMapsSetupFailures|reportsCloudflareSetupStates|reportsFreshSupabaseRuntimeAuthenticationRateLimitAndFailureStates'
+  --filter 'RuntimeResolver|Vercel|degradesManagedRuntimeFailuresWithoutLosingProductionMetadata|ModelMapsSetupFailures|reportsCloudflareSetupStates|reportsFreshSupabaseRuntimeAuthenticationRateLimitAndFailureStates'
 
 if /usr/bin/env -i PATH="/usr/bin:/bin:/usr/sbin:/sbin" /bin/sh -c 'command -v node' >/dev/null 2>&1; then
   fail "scrubbed verification PATH still contains a system Node.js"
