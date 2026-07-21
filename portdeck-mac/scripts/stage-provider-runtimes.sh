@@ -149,6 +149,25 @@ fi
 /bin/rm -rf "$node_install_root/node_modules/@netlify/ai"
 /bin/rm -rf "$node_install_root/node_modules/fsevents"
 
+# bare-fs, bare-path, and bare-url publish every supported platform prebuild in
+# one package. PortDeck ships only Apple Silicon macOS, so retain exactly the
+# darwin-arm64 native module and remove Android, iOS, Linux, Windows, and x64
+# payloads before signing.
+for native_package in bare-fs bare-path bare-url; do
+  prebuild_root="$node_install_root/node_modules/$native_package/prebuilds"
+  required_prebuild="$prebuild_root/darwin-arm64/$native_package.bare"
+  if [[ ! -f "$required_prebuild" ]] \
+    || [[ "$(/usr/bin/lipo -archs "$required_prebuild" 2>/dev/null)" != "$release_architecture" ]]; then
+    echo "$native_package is missing its required darwin-arm64 prebuild." >&2
+    exit 1
+  fi
+
+  while IFS= read -r foreign_prebuild; do
+    /bin/rm -rf "$foreign_prebuild"
+  done < <(/usr/bin/find "$prebuild_root" \
+    -mindepth 1 -maxdepth 1 -type d ! -name darwin-arm64 -print)
+done
+
 precond_license_path="$node_install_root/node_modules/precond/LICENSE"
 download_verified "$precond_license_url" "$precond_license_sha256" "$precond_license_path"
 
