@@ -38,6 +38,10 @@ actual_checksum="$(/usr/bin/shasum -a 256 "$release_zip" | /usr/bin/awk '{print 
 [[ "$actual_checksum" == "$expected_checksum" ]] || fail "ZIP SHA-256 does not match"
 
 verification_root="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/portdeck-production-verify.XXXXXX")"
+# macOS normally provides TMPDIR with a trailing slash. Canonicalize the new
+# directory once so later realpath-based symlink containment comparisons use
+# the same path representation.
+verification_root="$(/bin/realpath "$verification_root")"
 download_root="$verification_root/download"
 extract_root="$verification_root/extracted"
 copied_zip="$download_root/$release_asset"
@@ -476,7 +480,7 @@ project_json="$("$bundled_node" -e '
 run_helper projects save --input "$project_json" --json > "$verification_root/save.json"
 run_helper run start --project-id "$project_id" --json > "$verification_root/start.json"
 wait_for_port "$first_port" open
-run_helper run restart --project-id "$project_id" --json > "$verification_root/restart.json"
+run_helper run restart --project-id "$project_id" --port "$first_port" --json > "$verification_root/restart.json"
 wait_for_port "$first_port" open
 run_helper run restart --project-id "$project_id" --port "$second_port" --json > "$verification_root/port-switch.json"
 wait_for_port "$first_port" closed
@@ -492,6 +496,7 @@ for result_file in save start restart port-switch stop; do
   ' "$verification_root/${result_file}.json"
 done
 
+existing_app_pids="$(/usr/bin/pgrep -x PortDeckMac || true)"
 /usr/bin/env -i \
   HOME="$isolated_home" \
   CFFIXED_USER_HOME="$isolated_home" \
@@ -504,7 +509,14 @@ done
   2> "$verification_root/app.stderr" &
 open_pid=$!
 for _ in {1..60}; do
-  app_pid="$(/usr/bin/pgrep -f "$main_executable" | /usr/bin/head -n 1 || true)"
+  app_pid=""
+  while IFS= read -r candidate_pid; do
+    [[ -n "$candidate_pid" ]] || continue
+    if ! /usr/bin/printf '%s\n' "$existing_app_pids" | /usr/bin/grep -Fxq "$candidate_pid"; then
+      app_pid="$candidate_pid"
+      break
+    fi
+  done < <(/usr/bin/pgrep -x PortDeckMac || true)
   if [[ -n "$app_pid" ]] && /bin/kill -0 "$app_pid" 2>/dev/null; then
     break
   fi
