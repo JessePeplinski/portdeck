@@ -181,6 +181,20 @@ done
 "$bundled_node" "$script_root/scan-release-bundle.mjs" "$app_bundle" \
   || fail "bundle secret scan failed"
 
+for native_package in bare-fs bare-path bare-url; do
+  prebuild_root="$provider_root/node/node_modules/$native_package/prebuilds"
+  required_prebuild="$prebuild_root/darwin-arm64/$native_package.bare"
+  [[ -f "$required_prebuild" ]] \
+    || fail "$native_package is missing its darwin-arm64 prebuild"
+  [[ "$(/usr/bin/lipo -archs "$required_prebuild" 2>/dev/null)" == "$release_architecture" ]] \
+    || fail "$native_package darwin-arm64 prebuild is not arm64-only"
+  if /usr/bin/find "$prebuild_root" \
+    -mindepth 1 -maxdepth 1 -type d ! -name darwin-arm64 -print -quit \
+    | /usr/bin/grep -q .; then
+    fail "$native_package contains a foreign-platform prebuild"
+  fi
+done
+
 macho_count=0
 outer_signature_details="$(/usr/bin/codesign -dvvv "$app_bundle" 2>&1)"
 [[ "$outer_signature_details" == *"Authority=Developer ID Application:"* ]] \
