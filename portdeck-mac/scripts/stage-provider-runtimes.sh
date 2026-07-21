@@ -149,6 +149,21 @@ fi
 /bin/rm -rf "$node_install_root/node_modules/@netlify/ai"
 /bin/rm -rf "$node_install_root/node_modules/fsevents"
 
+# @fastify/static publishes test-only compressed fixtures. Two of its .gz
+# fixtures are intentionally malformed test data, which Apple reports as
+# uninspectable archives during notarization. PortDeck does not execute package
+# tests at runtime, so exclude the complete test fixture tree from production.
+fastify_static_test_root="$node_install_root/node_modules/@fastify/static/test"
+for warning_fixture in \
+  "$fastify_static_test_root/static-pre-compressed/all-three.html.gz" \
+  "$fastify_static_test_root/static-pre-compressed/gzip-only.html.gz"; do
+  if [[ ! -f "$warning_fixture" ]]; then
+    echo "The locked @fastify/static runtime is missing expected test fixture $warning_fixture." >&2
+    exit 1
+  fi
+done
+/bin/rm -rf "$fastify_static_test_root"
+
 # bare-fs, bare-path, and bare-url publish every supported platform prebuild in
 # one package. PortDeck ships only Apple Silicon macOS, so retain exactly the
 # darwin-arm64 native module and remove Android, iOS, Linux, Windows, and x64
