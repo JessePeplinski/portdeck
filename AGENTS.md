@@ -67,6 +67,7 @@ Do not publish or describe a build as download-ready until every gate passes:
 8. Create the final ZIP with `/usr/bin/ditto -c -k --keepParent`, then verify with `codesign --verify --deep --strict`, `spctl`, and `xcrun stapler validate`. Extract the ZIP as a user download and launch the quarantined app from a clean macOS user account with no source checkout, PortDeck CLI, or separate Node installation.
 9. Smoke-test local discovery, saved-project start/stop/port switching, every bundled provider runtime, and graceful missing/expired authentication states. Confirm no credentials, user paths, provider tokens, or monitored-project files entered the bundle.
 10. Publish manually as a versioned GitHub Release only after explicit approval. The first update path is the latest GitHub Release; do not add or claim an in-app updater until it is separately implemented and verified.
+11. After the downloaded GitHub artifact passes the complete production verifier, dispatch the `Update PortDeck cask` workflow in `JessePeplinski/homebrew-tap` for the exact release version. Require a successful workflow, confirm the cask commit reached `main`, and smoke-test a clean public `brew install --cask JessePeplinski/tap/portdeck@beta` before calling the release handoff complete.
 
 Ask before certificate or notarization setup, notarization uploads, tags, pushes, GitHub Releases, repository visibility changes, or any other public or hard-to-undo external action.
 

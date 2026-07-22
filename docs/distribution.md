@@ -83,7 +83,15 @@ Users install the beta with:
 brew install --cask JessePeplinski/tap/portdeck@beta
 ```
 
-The cask must retain the release's platform boundary (`arm64`, macOS 14 or newer), exact versioned asset URL, and SHA-256. After each new GitHub Release passes the downloaded-artifact verification above, update and test the cask in the tap. Do not point the cask at an unpublished asset, use `sha256 :no_check`, or publish the cask update before the GitHub Release is live and verified.
+The cask must retain the release's platform boundary (`arm64`, macOS 14 or newer), exact versioned asset URL, and SHA-256. After each new GitHub Release passes the downloaded-artifact verification above, dispatch the tap's `Update PortDeck cask` workflow for the exact beta version:
+
+```bash
+gh workflow run update-portdeck-cask.yml \
+  --repo JessePeplinski/homebrew-tap \
+  -f version=0.1.0-beta.2
+```
+
+Replace the example with the release version being published. The workflow independently requires a non-draft prerelease with both expected assets, verifies that GitHub's asset digest matches the published SHA-256 sidecar, updates and audits the cask, then commits the verified change to the tap. A six-hour scheduled check is a backup; the explicit workflow run and clean public install smoke remain release gates. Do not point the cask at an unpublished asset, use `sha256 :no_check`, or publish the cask update before the GitHub Release is live and verified.
 
 ## Mac App Store Target
 
