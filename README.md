@@ -14,9 +14,16 @@ PortDeck is a native macOS menu-bar command center for local development service
 
 Provider views are observation surfaces. They use existing authenticated sessions owned by the providers' official CLIs and do not deploy, restart, configure, or delete remote resources. Saved-project controls are the deliberate control surface: they change only local process state after an explicit user action and PortDeck's ownership and identity checks.
 
-## Download the Apple Silicon beta
+## Install the Apple Silicon beta
 
-The current beta supports arm64 Apple Silicon Macs running macOS 14 or newer. The versioned GitHub Release paths are:
+The current beta supports arm64 Apple Silicon Macs running macOS 14 or newer. Install it with Homebrew:
+
+```bash
+brew install --cask JessePeplinski/tap/portdeck@beta
+open -a PortDeck
+```
+
+Homebrew installs the same signed and notarized app published on GitHub. The versioned release paths remain available for manual installation:
 
 - [`PortDeck-0.1.0-beta.2-macos-arm64.zip`](../../releases/download/v0.1.0-beta.2/PortDeck-0.1.0-beta.2-macos-arm64.zip)
 - [`PortDeck-0.1.0-beta.2-macos-arm64.zip.sha256`](../../releases/download/v0.1.0-beta.2/PortDeck-0.1.0-beta.2-macos-arm64.zip.sha256)
@@ -95,7 +102,7 @@ The production pipeline is deliberately separate from `build:mac`, `run-dev-app.
 
 Run the release preflight with `npm run preflight:mac:github-release`. It checks local signing metadata and validates the selected notarytool profile with a silent, read-only Apple Notary history request when the profile is not visible through the legacy Keychain lookup; it never uploads an artifact. The signing-and-notarization build is additionally guarded by `PORTDECK_APPROVE_SIGNING_AND_NOTARIZATION=YES` and must not run until the release owner explicitly approves signing and the Apple upload. See [`docs/distribution.md`](docs/distribution.md) for the complete commands, fixed inputs, and verification contract.
 
-The first update path is a manual download from the latest GitHub Release. A DMG, universal/x86_64 package, Homebrew formula, in-app updater, and App Store package are not part of this beta.
+Homebrew installations update through `brew upgrade --cask JessePeplinski/tap/portdeck@beta`; manual installations update from the latest GitHub Release. A DMG, universal/x86_64 package, in-app updater, and App Store package are not part of this beta.
 
 ## Contributing
 
