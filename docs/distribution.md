@@ -11,7 +11,7 @@ The current beta is `v0.1.0-beta.2`, arm64-only for Apple Silicon Macs running m
 - app asset: [`PortDeck-0.1.0-beta.2-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.2/PortDeck-0.1.0-beta.2-macos-arm64.zip)
 - checksum asset: [`PortDeck-0.1.0-beta.2-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.2/PortDeck-0.1.0-beta.2-macos-arm64.zip.sha256)
 
-A DMG, universal/x86_64 build, Homebrew formula, Sparkle or another updater, and App Store package are explicitly outside this release. Universal packaging is a later compatibility slice after the complete runtime bundle is proven on Apple Silicon.
+A DMG, universal/x86_64 build, Sparkle or another in-app updater, and App Store package are explicitly outside this release. Universal packaging is a later compatibility slice after the complete runtime bundle is proven on Apple Silicon.
 
 ## Local arm64 release candidate
 
@@ -72,6 +72,18 @@ Every redistributed npm package has explicit license evidence in the runtime man
 `verify-release-app.sh --production-zip <zip> <sha256>` extracts the ZIP outside the checkout as a user download, applies simulated quarantine, and requires matching bundle/tag metadata, the approved icon checksum, arm64-only Mach-O code, exact runtime versions, contained symlinks, complete licenses/notices, Developer ID signatures, secure timestamps, hardened runtime, no App Sandbox, a valid stapled ticket, and Gatekeeper acceptance. It uses temporary `HOME` and `PORTDECK_STATE_DIR` values with a scrubbed `PATH`, then exercises status discovery, save, start, restart, confirmed port switching, stop, managed runtime version execution, and app launch.
 
 After the PR is merged and release publication is explicitly approved, create `v0.1.0-beta.2` as a GitHub prerelease and attach only the ZIP and SHA-256 file. Download both assets back into a new temporary directory and rerun the production verifier against those downloaded files. The release is incomplete until the downloaded checksum matches, Gatekeeper accepts the quarantined extracted app, the app launches, and the downloaded Local/Projects lifecycle passes.
+
+## Homebrew Cask
+
+PortDeck's prerelease Homebrew channel is the `portdeck@beta` cask in the separate [`JessePeplinski/homebrew-tap`](https://github.com/JessePeplinski/homebrew-tap) repository. It installs the exact signed and notarized ZIP already published by the PortDeck GitHub Release; Homebrew is an additional installation and update path, not a separate build artifact.
+
+Users install the beta with:
+
+```bash
+brew install --cask JessePeplinski/tap/portdeck@beta
+```
+
+The cask must retain the release's platform boundary (`arm64`, macOS 14 or newer), exact versioned asset URL, and SHA-256. After each new GitHub Release passes the downloaded-artifact verification above, update and test the cask in the tap. Do not point the cask at an unpublished asset, use `sha256 :no_check`, or publish the cask update before the GitHub Release is live and verified.
 
 ## Mac App Store Target
 
