@@ -151,7 +151,7 @@ approved_icon_sha256="$(/usr/libexec/PlistBuddy -c 'Print :PortDeckApprovedIconS
 /usr/bin/iconutil --convert iconset --output "$verification_root/PortDeck.iconset" "$approved_icon" >/dev/null
 
 maximum_app_size_kib=112640
-maximum_file_count=9
+maximum_file_count=10
 app_size_kib="$(/usr/bin/du -sk "$app_bundle" | /usr/bin/awk '{print $1}')"
 [[ "$app_size_kib" -le "$maximum_app_size_kib" ]] \
   || fail "bundle is ${app_size_kib} KiB; maximum is ${maximum_app_size_kib} KiB"
@@ -160,6 +160,7 @@ file_count="$(/usr/bin/find "$app_bundle" -type f | /usr/bin/wc -l | /usr/bin/tr
   || fail "bundle contains ${file_count} files; maximum is ${maximum_file_count}"
 
 expected_files="$(/usr/bin/printf '%s\n' \
+  'Contents/CodeResources' \
   'Contents/Info.plist' \
   'Contents/MacOS/PortDeckMac' \
   'Contents/Resources/Licenses/Node.js-LICENSE.txt' \

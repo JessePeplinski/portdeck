@@ -27,7 +27,7 @@ The release limits are hard gates:
 - installed `PortDeck.app`: at most 110 MiB (`112640` KiB);
 - production ZIP: at most `45,000,000` bytes;
 - local candidate: at most nine regular files;
-- production app: exactly the nine expected regular files.
+- production app: exactly the ten expected regular files, including Apple's stapled notarization ticket.
 
 `scripts/build-release-app.sh` strips the Swift app executable and bundled Node executable before signing. It emits matching `PortDeckMac.dSYM` debug symbols beside the local candidate, outside `PortDeck.app`, and rejects a UUID mismatch.
 
@@ -76,7 +76,7 @@ Do not run the guarded signing/notarization workflow, create a tag, publish a Gi
 - the expected ZIP/checksum names and digest;
 - a ZIP at or below `45,000,000` bytes;
 - only `PortDeck.app` at the archive root;
-- the exact nine-file app contents and no `ProviderRuntimes`;
+- the exact ten-file app contents, including Apple's stapled notarization ticket, and no `ProviderRuntimes`;
 - an installed app at or below 110 MiB;
 - matching release metadata and approved icon checksum;
 - arm64-only Mach-O code;
