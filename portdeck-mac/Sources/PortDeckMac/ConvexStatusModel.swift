@@ -62,6 +62,10 @@ final class ConvexStatusModel: ObservableObject {
     await refreshCurrentCandidates()
   }
 
+  func refresh() async {
+    await refreshCurrentCandidates()
+  }
+
   func connect(using candidate: ConvexProjectCandidate) async {
     guard !isConnecting else {
       return
@@ -196,7 +200,19 @@ final class ConvexStatusModel: ObservableObject {
           availability: .unconfigured,
           message: message
         )
-      case .missingRuntime, .incompatibleRuntime, .commandFailed, .invalidResponse:
+      case .missingCLI:
+        return ConvexProjectStatusBuilder.unavailable(
+          candidate: candidate,
+          availability: .missingCLI,
+          message: message
+        )
+      case .unsupportedCLI:
+        return ConvexProjectStatusBuilder.unavailable(
+          candidate: candidate,
+          availability: .unsupportedCLI,
+          message: message
+        )
+      case .commandFailed, .invalidResponse:
         break
       }
     }

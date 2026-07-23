@@ -106,8 +106,8 @@ import Testing
 @MainActor
 @Test func netlifyModelMapsSetupFailuresAndIgnoresCancellation() async {
   let cases: [(NetlifyCLIError, NetlifyConnectionState)] = [
-    (.missingRuntime, .missingRuntime),
-    (.incompatibleRuntime(currentVersion: "netlify-cli/25.0.0"), .incompatibleRuntime(currentVersion: "netlify-cli/25.0.0")),
+    (.missingCLI, .missingCLI),
+    (.unsupportedCLI(currentVersion: "netlify-cli/25.0.0"), .unsupportedCLI(currentVersion: "netlify-cli/25.0.0")),
     (.authenticationRequired, .authenticationRequired),
     (.rateLimited, .rateLimited(message: NetlifyCLIError.rateLimited.localizedDescription))
   ]

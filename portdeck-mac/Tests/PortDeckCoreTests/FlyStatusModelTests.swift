@@ -118,8 +118,8 @@ import Testing
 @MainActor
 @Test func flyModelMapsSetupFailuresAndIgnoresCancellation() async {
   let cases: [(FlyCLIError, FlyConnectionState)] = [
-    (.missingRuntime, .missingRuntime),
-    (.incompatibleRuntime(currentVersion: "flyctl 0.4.70 darwin/arm64"), .incompatibleRuntime(currentVersion: "flyctl 0.4.70 darwin/arm64")),
+    (.missingCLI, .missingCLI),
+    (.unsupportedCLI(currentVersion: "flyctl 0.4.70 darwin/arm64"), .unsupportedCLI(currentVersion: "flyctl 0.4.70 darwin/arm64")),
     (.authenticationRequired, .authenticationRequired),
     (.rateLimited, .rateLimited(message: FlyCLIError.rateLimited.localizedDescription))
   ]

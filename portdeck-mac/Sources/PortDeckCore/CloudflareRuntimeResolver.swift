@@ -5,72 +5,41 @@ public protocol CloudflareRuntimeResolving: Sendable {
 }
 
 public struct CloudflareRuntimeResolver: CloudflareRuntimeResolving, @unchecked Sendable {
-  public static let pinnedVersion = "4.111.0"
+  public static let supportedVersionRange = SupportedProviderCLIVersionRange(
+    minimumInclusive: "4.111.0",
+    maximumExclusive: "5.0.0"
+  )
+  public static let installCommand = "npm install --global wrangler@4"
+  public static let documentationURL = "https://developers.cloudflare.com/workers/wrangler/install-and-update/"
   public static let overrideEnvironmentKey = "PORTDECK_WRANGLER_BIN"
-  public static let bundledRelativePath = "ProviderRuntimes/cloudflare/bin/wrangler"
+  public static let executableName = "wrangler"
 
-  private let environment: [String: String]
-  private let bundleResourceURL: URL?
-  private let developmentSearchRoots: [URL]
-  private let fileManager: FileManager
+  private let resolver: ExternalProviderCLIResolver
 
   public init(
     environment: [String: String] = ProcessInfo.processInfo.environment,
-    bundleResourceURL: URL? = Bundle.main.resourceURL,
-    developmentSearchRoots: [URL] = CloudflareRuntimeResolver.defaultDevelopmentSearchRoots(),
-    fileManager: FileManager = .default
+    executableSearchPaths: [String] = ["/opt/homebrew/bin/wrangler", "/usr/local/bin/wrangler"],
+    fileManager: FileManager = .default,
+    loginShellLookup: @escaping ProviderCLILoginShellLookup = ExternalProviderCLIResolver.lookupInLoginShell
   ) {
-    self.environment = environment
-    self.bundleResourceURL = bundleResourceURL
-    self.developmentSearchRoots = developmentSearchRoots
-    self.fileManager = fileManager
+    resolver = ExternalProviderCLIResolver(
+      executableName: Self.executableName,
+      overrideEnvironmentKey: Self.overrideEnvironmentKey,
+      environment: environment,
+      executableSearchPaths: executableSearchPaths,
+      fileManager: fileManager,
+      loginShellLookup: loginShellLookup
+    )
   }
 
   public func resolveExecutableURL() throws -> URL {
-    if let override = environment[Self.overrideEnvironmentKey] {
-      let overrideURL = URL(fileURLWithPath: override)
-      guard fileManager.isExecutableFile(atPath: overrideURL.path) else {
-        throw CloudflareCLIError.missingRuntime
+    do {
+      guard let executableURL = try resolver.resolveExecutableURL() else {
+        throw CloudflareCLIError.missingCLI
       }
-      return overrideURL
+      return executableURL
+    } catch is ExternalProviderCLIResolutionError {
+      throw CloudflareCLIError.missingCLI
     }
-
-    if let bundledURL = bundleResourceURL?.appendingPathComponent(Self.bundledRelativePath),
-      fileManager.isExecutableFile(atPath: bundledURL.path)
-    {
-      return bundledURL
-    }
-
-    if PackagedRuntimeBoundary.requiresBundledRuntime(
-      bundleResourceURL: bundleResourceURL,
-      fileManager: fileManager
-    ) {
-      throw CloudflareCLIError.missingRuntime
-    }
-
-    for root in developmentSearchRoots {
-      var directory = root.standardizedFileURL
-      for _ in 0..<12 {
-        let candidate = directory.appendingPathComponent("node_modules/.bin/wrangler")
-        if fileManager.isExecutableFile(atPath: candidate.path) {
-          return candidate
-        }
-
-        let parent = directory.deletingLastPathComponent()
-        if parent.path == directory.path { break }
-        directory = parent
-      }
-    }
-
-    throw CloudflareCLIError.missingRuntime
-  }
-
-  public static func defaultDevelopmentSearchRoots() -> [URL] {
-    var roots: [URL] = []
-    if let executableURL = Bundle.main.executableURL {
-      roots.append(executableURL.deletingLastPathComponent())
-    }
-    roots.append(Bundle.main.bundleURL)
-    return roots
   }
 }

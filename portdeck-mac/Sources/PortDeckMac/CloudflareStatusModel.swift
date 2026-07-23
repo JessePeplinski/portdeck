@@ -180,10 +180,10 @@ final class CloudflareStatusModel: ObservableObject {
   private func applyConnectionError(_ error: Error) {
     let message = error.localizedDescription
     switch error {
-    case CloudflareCLIError.missingRuntime:
-      connectionState = .missingRuntime
-    case CloudflareCLIError.incompatibleRuntime(let currentVersion):
-      connectionState = .incompatibleRuntime(currentVersion: currentVersion)
+    case CloudflareCLIError.missingCLI:
+      connectionState = .missingCLI
+    case CloudflareCLIError.unsupportedCLI(let currentVersion):
+      connectionState = .unsupportedCLI(currentVersion: currentVersion)
     case CloudflareCLIError.authenticationRequired:
       connectionState = .authenticationRequired
     case CloudflareCLIError.rateLimited:

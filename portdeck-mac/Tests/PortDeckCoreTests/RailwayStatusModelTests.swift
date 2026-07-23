@@ -109,8 +109,8 @@ import Testing
 @MainActor
 @Test func railwayModelMapsSetupFailuresWithoutDiscardingState() async {
   let cases: [(RailwayCLIError, RailwayConnectionState)] = [
-    (.missingRuntime, .missingRuntime),
-    (.incompatibleRuntime(currentVersion: "railway 5.25.0"), .incompatibleRuntime(currentVersion: "railway 5.25.0")),
+    (.missingCLI, .missingCLI),
+    (.unsupportedCLI(currentVersion: "railway 5.25.0"), .unsupportedCLI(currentVersion: "railway 5.25.0")),
     (.authenticationRequired, .authenticationRequired),
     (.rateLimited, .rateLimited(message: RailwayCLIError.rateLimited.localizedDescription))
   ]

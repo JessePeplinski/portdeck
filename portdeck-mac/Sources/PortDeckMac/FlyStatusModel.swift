@@ -134,10 +134,10 @@ final class FlyStatusModel: ObservableObject {
   private func applyConnectionError(_ error: Error) {
     let message = error.localizedDescription
     switch error {
-    case FlyCLIError.missingRuntime:
-      connectionState = .missingRuntime
-    case FlyCLIError.incompatibleRuntime(let currentVersion):
-      connectionState = .incompatibleRuntime(currentVersion: currentVersion)
+    case FlyCLIError.missingCLI:
+      connectionState = .missingCLI
+    case FlyCLIError.unsupportedCLI(let currentVersion):
+      connectionState = .unsupportedCLI(currentVersion: currentVersion)
     case FlyCLIError.authenticationRequired:
       connectionState = .authenticationRequired
     case FlyCLIError.rateLimited:

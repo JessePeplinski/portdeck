@@ -2,12 +2,11 @@
 
 This document records the verified contract for PortDeck's read-only Fly.io provider.
 
-## Runtime and authentication
+## CLI and authentication
 
-- Pin the official native Go CLI exactly to flyctl 0.4.71.
-- Verify macOS SHA-256 checksums: arm64 `a89085595d7da7d4ee3a8647feb700a52702eb835591e78feae47fcd2d98bfbe`; x86_64 `00f46edbd9d2a537aeccd770c28b987a2dbd3bf593aef8fa35b57dc04d38d9a2`.
-- Resolve authoritative `PORTDECK_FLY_BIN`, then `Contents/Resources/ProviderRuntimes/fly/bin/flyctl`, then PortDeck-owned `.build/provider-runtimes/fly/bin/flyctl`. Never search PATH, Homebrew, user projects, `fly.toml`, or monitored repositories.
-- Require `flyctl version --json` to report name `flyctl`, version `0.4.71`, Darwin, and a supported architecture before caching. Never download at application runtime.
+- Support the official native Go CLI at `>=0.4.71 <0.5.0`.
+- Resolve authoritative `PORTDECK_FLY_BIN`, then the user's login shell, `/opt/homebrew/bin/flyctl`, and `/usr/local/bin/flyctl`. Never search user projects, `fly.toml`, monitored repositories, or PortDeck dependencies.
+- Require `flyctl version --json` to report name `flyctl`, a supported version, Darwin, and a supported architecture before caching. Never download or install at application runtime.
 - Use only flyctl's existing user session. Authentication UI may copy `flyctl auth login` but PortDeck never runs it, passes a token, reads credential/config files, or stores identity/credentials.
 - Remove inherited Fly token/context/base-URL/logging variables. Set `FLY_SEND_METRICS=0`, `DO_NOT_TRACK=1`, and `NO_COLOR=1`.
 - Run directly through `Process` from a private `0700` PortDeck directory with separate `0600` output files. Discard successful stderr, clean command output, bound/redact errors, and terminate the child on cancellation.

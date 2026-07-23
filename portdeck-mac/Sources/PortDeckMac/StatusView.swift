@@ -669,10 +669,10 @@ struct StatusView: View {
 
   private var supabaseSubtitle: String {
     switch supabaseModel.connectionState {
-    case .missingRuntime:
-      return "Supabase runtime unavailable"
-    case .incompatibleRuntime:
-      return "Supabase runtime incompatible"
+    case .missingCLI:
+      return "Supabase CLI required"
+    case .unsupportedCLI:
+      return "Supabase CLI update required"
     case .authenticationRequired:
       return "Supabase authentication required"
     case .rateLimited:
@@ -687,10 +687,10 @@ struct StatusView: View {
 
   private var cloudflareSubtitle: String {
     switch cloudflareModel.connectionState {
-    case .missingRuntime:
-      return "Wrangler runtime unavailable"
-    case .incompatibleRuntime:
-      return "Wrangler runtime incompatible"
+    case .missingCLI:
+      return "Wrangler required"
+    case .unsupportedCLI:
+      return "Wrangler update required"
     case .authenticationRequired:
       return "Cloudflare authentication required"
     case .rateLimited:
@@ -705,10 +705,10 @@ struct StatusView: View {
 
   private var railwaySubtitle: String {
     switch railwayModel.connectionState {
-    case .missingRuntime:
-      return "Railway runtime unavailable"
-    case .incompatibleRuntime:
-      return "Railway runtime incompatible"
+    case .missingCLI:
+      return "Railway CLI required"
+    case .unsupportedCLI:
+      return "Railway CLI update required"
     case .authenticationRequired:
       return "Railway authentication required"
     case .rateLimited:
@@ -724,10 +724,10 @@ struct StatusView: View {
 
   private var flySubtitle: String {
     switch flyModel.connectionState {
-    case .missingRuntime:
-      return "Fly runtime unavailable"
-    case .incompatibleRuntime:
-      return "Fly runtime incompatible"
+    case .missingCLI:
+      return "flyctl required"
+    case .unsupportedCLI:
+      return "flyctl update required"
     case .authenticationRequired:
       return "Fly authentication required"
     case .rateLimited:
@@ -743,10 +743,10 @@ struct StatusView: View {
 
   private var netlifySubtitle: String {
     switch netlifyModel.connectionState {
-    case .missingRuntime:
-      return "Netlify runtime unavailable"
-    case .incompatibleRuntime:
-      return "Netlify runtime incompatible"
+    case .missingCLI:
+      return "Netlify CLI required"
+    case .unsupportedCLI:
+      return "Netlify CLI update required"
     case .authenticationRequired:
       return "Netlify authentication required"
     case .rateLimited:

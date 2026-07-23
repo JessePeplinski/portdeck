@@ -5,74 +5,41 @@ public protocol ConvexRuntimeResolving: Sendable {
 }
 
 public struct ConvexRuntimeResolver: ConvexRuntimeResolving, @unchecked Sendable {
-  public static let pinnedVersion = "1.42.1"
+  public static let supportedVersionRange = SupportedProviderCLIVersionRange(
+    minimumInclusive: "1.42.1",
+    maximumExclusive: "2.0.0"
+  )
+  public static let installCommand = "npm install --global convex@1"
+  public static let documentationURL = "https://docs.convex.dev/cli"
   public static let overrideEnvironmentKey = "PORTDECK_CONVEX_BIN"
-  public static let bundledRelativePath = "ProviderRuntimes/convex/bin/convex"
+  public static let executableName = "convex"
 
-  private let environment: [String: String]
-  private let bundleResourceURL: URL?
-  private let developmentSearchRoots: [URL]
-  private let fileManager: FileManager
+  private let resolver: ExternalProviderCLIResolver
 
   public init(
     environment: [String: String] = ProcessInfo.processInfo.environment,
-    bundleResourceURL: URL? = Bundle.main.resourceURL,
-    developmentSearchRoots: [URL] = ConvexRuntimeResolver.defaultDevelopmentSearchRoots(),
-    fileManager: FileManager = .default
+    executableSearchPaths: [String] = ["/opt/homebrew/bin/convex", "/usr/local/bin/convex"],
+    fileManager: FileManager = .default,
+    loginShellLookup: @escaping ProviderCLILoginShellLookup = ExternalProviderCLIResolver.lookupInLoginShell
   ) {
-    self.environment = environment
-    self.bundleResourceURL = bundleResourceURL
-    self.developmentSearchRoots = developmentSearchRoots
-    self.fileManager = fileManager
+    resolver = ExternalProviderCLIResolver(
+      executableName: Self.executableName,
+      overrideEnvironmentKey: Self.overrideEnvironmentKey,
+      environment: environment,
+      executableSearchPaths: executableSearchPaths,
+      fileManager: fileManager,
+      loginShellLookup: loginShellLookup
+    )
   }
 
   public func resolveExecutableURL() throws -> URL {
-    if let override = environment[Self.overrideEnvironmentKey] {
-      let overrideURL = URL(fileURLWithPath: override)
-      guard fileManager.isExecutableFile(atPath: overrideURL.path) else {
-        throw ConvexCLIError.missingRuntime
+    do {
+      guard let executableURL = try resolver.resolveExecutableURL() else {
+        throw ConvexCLIError.missingCLI
       }
-      return overrideURL
+      return executableURL
+    } catch is ExternalProviderCLIResolutionError {
+      throw ConvexCLIError.missingCLI
     }
-
-    if let bundledURL = bundleResourceURL?.appendingPathComponent(Self.bundledRelativePath),
-      fileManager.isExecutableFile(atPath: bundledURL.path)
-    {
-      return bundledURL
-    }
-
-    if PackagedRuntimeBoundary.requiresBundledRuntime(
-      bundleResourceURL: bundleResourceURL,
-      fileManager: fileManager
-    ) {
-      throw ConvexCLIError.missingRuntime
-    }
-
-    for root in developmentSearchRoots {
-      var directory = root.standardizedFileURL
-      for _ in 0..<12 {
-        let candidate = directory.appendingPathComponent("node_modules/.bin/convex")
-        if fileManager.isExecutableFile(atPath: candidate.path) {
-          return candidate
-        }
-
-        let parent = directory.deletingLastPathComponent()
-        if parent.path == directory.path {
-          break
-        }
-        directory = parent
-      }
-    }
-
-    throw ConvexCLIError.missingRuntime
-  }
-
-  public static func defaultDevelopmentSearchRoots() -> [URL] {
-    var roots = [URL(fileURLWithPath: FileManager.default.currentDirectoryPath)]
-    if let executableURL = Bundle.main.executableURL {
-      roots.append(executableURL.deletingLastPathComponent())
-    }
-    roots.append(Bundle.main.bundleURL)
-    return roots
   }
 }

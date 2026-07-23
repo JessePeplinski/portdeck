@@ -5,73 +5,41 @@ public protocol FlyRuntimeResolving: Sendable {
 }
 
 public struct FlyRuntimeResolver: FlyRuntimeResolving, @unchecked Sendable {
-  public static let pinnedVersion = "0.4.71"
+  public static let supportedVersionRange = SupportedProviderCLIVersionRange(
+    minimumInclusive: "0.4.71",
+    maximumExclusive: "0.5.0"
+  )
+  public static let installCommand = "brew install flyctl"
+  public static let documentationURL = "https://fly.io/docs/flyctl/install/"
   public static let overrideEnvironmentKey = "PORTDECK_FLY_BIN"
-  public static let bundledRelativePath = "ProviderRuntimes/fly/bin/flyctl"
-  public static let developmentRelativePath = ".build/provider-runtimes/fly/bin/flyctl"
+  public static let executableName = "flyctl"
 
-  private let environment: [String: String]
-  private let bundleResourceURL: URL?
-  private let developmentSearchRoots: [URL]
-  private let fileManager: FileManager
+  private let resolver: ExternalProviderCLIResolver
 
   public init(
     environment: [String: String] = ProcessInfo.processInfo.environment,
-    bundleResourceURL: URL? = Bundle.main.resourceURL,
-    developmentSearchRoots: [URL] = FlyRuntimeResolver.defaultDevelopmentSearchRoots(),
-    fileManager: FileManager = .default
+    executableSearchPaths: [String] = ["/opt/homebrew/bin/flyctl", "/usr/local/bin/flyctl"],
+    fileManager: FileManager = .default,
+    loginShellLookup: @escaping ProviderCLILoginShellLookup = ExternalProviderCLIResolver.lookupInLoginShell
   ) {
-    self.environment = environment
-    self.bundleResourceURL = bundleResourceURL
-    self.developmentSearchRoots = developmentSearchRoots
-    self.fileManager = fileManager
+    resolver = ExternalProviderCLIResolver(
+      executableName: Self.executableName,
+      overrideEnvironmentKey: Self.overrideEnvironmentKey,
+      environment: environment,
+      executableSearchPaths: executableSearchPaths,
+      fileManager: fileManager,
+      loginShellLookup: loginShellLookup
+    )
   }
 
   public func resolveExecutableURL() throws -> URL {
-    if let override = environment[Self.overrideEnvironmentKey] {
-      let overrideURL = URL(fileURLWithPath: override)
-      guard fileManager.isExecutableFile(atPath: overrideURL.path) else {
-        throw FlyCLIError.missingRuntime
+    do {
+      guard let executableURL = try resolver.resolveExecutableURL() else {
+        throw FlyCLIError.missingCLI
       }
-      return overrideURL
+      return executableURL
+    } catch is ExternalProviderCLIResolutionError {
+      throw FlyCLIError.missingCLI
     }
-
-    if let bundledURL = bundleResourceURL?.appendingPathComponent(Self.bundledRelativePath),
-      fileManager.isExecutableFile(atPath: bundledURL.path)
-    {
-      return bundledURL
-    }
-
-    if PackagedRuntimeBoundary.requiresBundledRuntime(
-      bundleResourceURL: bundleResourceURL,
-      fileManager: fileManager
-    ) {
-      throw FlyCLIError.missingRuntime
-    }
-
-    for root in developmentSearchRoots {
-      var directory = root.standardizedFileURL
-      for _ in 0..<12 {
-        let candidate = directory.appendingPathComponent(Self.developmentRelativePath)
-        if fileManager.isExecutableFile(atPath: candidate.path) {
-          return candidate
-        }
-
-        let parent = directory.deletingLastPathComponent()
-        if parent.path == directory.path { break }
-        directory = parent
-      }
-    }
-
-    throw FlyCLIError.missingRuntime
-  }
-
-  public static func defaultDevelopmentSearchRoots() -> [URL] {
-    var roots: [URL] = []
-    if let executableURL = Bundle.main.executableURL {
-      roots.append(executableURL.deletingLastPathComponent())
-    }
-    roots.append(Bundle.main.bundleURL)
-    return roots
   }
 }

@@ -55,7 +55,7 @@ import Testing
   #expect(commands.dropFirst(2).allSatisfy { $0.environment["CLOUDFLARE_ACCOUNT_ID"] == "account-1" })
 }
 
-@Test func validatesWranglerVersionOnceAndRejectsOtherVersions() async throws {
+@Test func validatesWranglerVersionRangeOnceAndRejectsUnsupportedVersions() async throws {
   let runner = FakeCloudflareCommandRunner(responses: [
     cloudflareResult("4.111.0"), cloudflareResult(whoAmIJSON()), cloudflareResult(whoAmIJSON())
   ])
@@ -64,9 +64,9 @@ import Testing
   _ = try await client.fetchAccounts()
   #expect(await runner.receivedCommands.map(\.arguments) == [["--version"], ["whoami", "--json"], ["whoami", "--json"]])
 
-  for version in ["4.110.0", "4.112.0", "4.111.0-beta.1"] {
+  for version in ["4.110.0", "5.0.0", "4.111.0-beta.1"] {
     let client = managedCloudflareClient(runner: FakeCloudflareCommandRunner(responses: [cloudflareResult(version)]))
-    await #expect(throws: CloudflareCLIError.incompatibleRuntime(currentVersion: version)) {
+    await #expect(throws: CloudflareCLIError.unsupportedCLI(currentVersion: version)) {
       try await client.fetchAccounts()
     }
   }

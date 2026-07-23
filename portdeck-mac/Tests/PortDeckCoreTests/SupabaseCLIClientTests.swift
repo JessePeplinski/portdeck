@@ -46,18 +46,18 @@ import Testing
   ])
 }
 
-@Test func rejectsMissingAndNonPinnedSupabaseRuntimes() async {
+@Test func rejectsMissingAndUnsupportedSupabaseCLIs() async {
   let missing = SupabaseCLIClient(
     runner: FakeSupabaseCommandRunner(responses: []),
     runtimeResolver: FailingSupabaseRuntimeResolver()
   )
-  await #expect(throws: SupabaseCLIError.missingRuntime) {
+  await #expect(throws: SupabaseCLIError.missingCLI) {
     try await missing.fetchProjects()
   }
 
-  for version in ["2.109.0", "2.110.0", "2.109.1-beta.1"] {
+  for version in ["2.109.0", "3.0.0", "2.109.1-beta.1"] {
     let client = managedSupabaseClient(runner: FakeSupabaseCommandRunner(responses: [supabaseResult(version)]))
-    await #expect(throws: SupabaseCLIError.incompatibleRuntime(currentVersion: version)) {
+    await #expect(throws: SupabaseCLIError.unsupportedCLI(currentVersion: version)) {
       try await client.fetchProjects()
     }
   }
@@ -168,7 +168,7 @@ private struct StaticSupabaseRuntimeResolver: SupabaseRuntimeResolving {
 }
 
 private struct FailingSupabaseRuntimeResolver: SupabaseRuntimeResolving {
-  func resolveExecutableURL() throws -> URL { throw SupabaseCLIError.missingRuntime }
+  func resolveExecutableURL() throws -> URL { throw SupabaseCLIError.missingCLI }
 }
 
 private enum FakeSupabaseRunnerError: Error { case missingResponse }

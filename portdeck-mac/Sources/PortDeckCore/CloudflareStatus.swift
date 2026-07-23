@@ -328,8 +328,8 @@ public enum CloudflareStatusBuilder {
 public enum CloudflareConnectionState: Equatable, Sendable {
   case checking
   case connected
-  case missingRuntime
-  case incompatibleRuntime(currentVersion: String)
+  case missingCLI
+  case unsupportedCLI(currentVersion: String)
   case authenticationRequired
   case rateLimited(message: String)
   case failed(message: String)

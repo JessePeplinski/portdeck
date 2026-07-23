@@ -6,6 +6,7 @@ repo_root="$(cd "$package_root/.." && pwd)"
 build_root="$package_root/.build"
 artifact_root="$build_root/release-artifacts"
 app_bundle="$artifact_root/PortDeck.app"
+debug_symbols="$artifact_root/PortDeckMac.dSYM"
 staging_root="$build_root/release-staging"
 staging_app="$staging_root/PortDeck.app"
 swift_scratch="$build_root/release-swift"
@@ -81,7 +82,9 @@ swift_bin_path="$(swift build \
   --show-bin-path)"
 
 /bin/cp "$swift_bin_path/PortDeckMac" "$main_executable"
-/usr/bin/strip -S "$main_executable"
+/bin/rm -rf "$debug_symbols"
+/usr/bin/dsymutil "$main_executable" -o "$debug_symbols"
+/usr/bin/strip -Sx "$main_executable"
 /bin/chmod 755 "$main_executable"
 /bin/cp "$package_root/Config/Info.plist" "$staging_app/Contents/Info.plist"
 
@@ -89,6 +92,7 @@ npm run bundle:helper --workspace portdeck-app -- \
   --outfile "$bundled_cli" \
   --notices-file "$licenses_root/PortDeck-Helper-THIRD-PARTY-NOTICES.txt"
 /bin/cp "$node_extract_root/bin/node" "$bundled_node"
+/usr/bin/strip -Sx "$bundled_node"
 /bin/chmod 755 "$bundled_node" "$bundled_cli"
 /bin/cp "$node_extract_root/LICENSE" "$licenses_root/Node.js-LICENSE.txt"
 /bin/cp "$repo_root/LICENSE" "$licenses_root/PortDeck-LICENSE.txt"
@@ -101,8 +105,10 @@ if [[ "$(/usr/bin/lipo -archs "$bundled_node")" != "arm64" ]]; then
   echo "Bundled Node.js is not an arm64-only executable." >&2
   exit 1
 fi
-if [[ "$("$bundled_node" --version)" != "v${node_version}" ]]; then
-  echo "Bundled Node.js version does not match v${node_version}." >&2
+main_uuid="$(/usr/bin/dwarfdump --uuid "$main_executable" | /usr/bin/awk '{print $2}')"
+symbols_uuid="$(/usr/bin/dwarfdump --uuid "$debug_symbols" | /usr/bin/awk '{print $2}')"
+if [[ -z "$main_uuid" || "$main_uuid" != "$symbols_uuid" ]]; then
+  echo "PortDeckMac.dSYM UUID does not match the stripped executable." >&2
   exit 1
 fi
 
@@ -113,6 +119,10 @@ fi
   --sign - \
   --entitlements "$node_entitlements" \
   "$bundled_node"
+if [[ "$("$bundled_node" --version)" != "v${node_version}" ]]; then
+  echo "Bundled Node.js version does not match v${node_version} after stripping and signing." >&2
+  exit 1
+fi
 /usr/bin/codesign \
   --force \
   --options runtime \
@@ -128,6 +138,7 @@ fi
 /bin/rm -rf "$staging_root"
 
 echo "Built local arm64 release candidate: $app_bundle"
+echo "Debug symbols: $debug_symbols"
 echo "Node.js: v${node_version}"
 echo "Node.js archive: $node_url"
 echo "Node.js archive SHA-256: $node_sha256"

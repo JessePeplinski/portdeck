@@ -53,8 +53,6 @@ set_plist_string PortDeckReleaseArchitecture "$release_architecture"
 set_plist_string PortDeckNodeVersion "$node_version"
 set_plist_string PortDeckApprovedIconSHA256 "$approved_icon_sha256"
 
-"$script_root/stage-provider-runtimes.sh" "$staging_app"
-
 main_executable="$staging_app/Contents/MacOS/PortDeckMac"
 bundled_node="$staging_app/Contents/Resources/PortDeckRuntime/bin/node"
 
