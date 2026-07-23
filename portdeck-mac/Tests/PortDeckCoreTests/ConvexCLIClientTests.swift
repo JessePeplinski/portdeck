@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import PortDeckCore
 
-@Test func fetchesStructuredConvexProductionHealthThroughTheManagedRuntime() async throws {
+@Test func fetchesStructuredConvexProductionHealthThroughTheExternalCLI() async throws {
   let runner = FakeConvexCommandRunner(responses: [
     commandResult("1.42.1"),
     commandResult(#"{"deploymentName":"steady-otter-123","dashboardUrl":"https://dashboard.convex.dev/d/steady-otter-123?view=insights","insights":[{"kind":"occRetried","severity":"warning","functionId":"tasks:run","componentPath":null,"occCalls":2}]}"#)
@@ -28,7 +28,7 @@ import Testing
   ])
 }
 
-@Test func validatesThePinnedRuntimeOnceAndNeverSearchesProjectDependencies() async throws {
+@Test func validatesTheSupportedCLIOnceAndNeverSearchesProjectDependencies() async throws {
   let oldProject = ConvexProjectCandidate(projectName: "Old", packageName: nil, packagePath: "/repo/old")
   let otherProject = ConvexProjectCandidate(projectName: "Other", packageName: nil, packagePath: "/repo/other")
   let responseJSON = #"{"deploymentName":"steady-otter-123","dashboardUrl":"https://dashboard.convex.dev/d/steady-otter-123?view=insights","insights":[]}"#
@@ -55,28 +55,28 @@ import Testing
   #expect(commands.map(\.currentDirectory) == ["/repo/old", "/repo/old", "/repo/other"])
 }
 
-@Test func rejectsMissingAndNonPinnedManagedRuntimes() async {
+@Test func rejectsMissingAndUnsupportedConvexCLIs() async {
   let candidate = ConvexProjectCandidate(projectName: "Demo", packageName: nil, packagePath: "/repo/demo")
   let missing = ConvexCLIClient(
     runner: FakeConvexCommandRunner(responses: []),
     runtimeResolver: FailingConvexRuntimeResolver()
   )
-  await #expect(throws: ConvexCLIError.missingRuntime) {
+  await #expect(throws: ConvexCLIError.missingCLI) {
     try await missing.fetchProductionHealth(for: candidate, target: productionTarget())
   }
 
-  for version in ["1.40.0", "1.43.0"] {
+  for version in ["1.40.0", "2.0.0"] {
     let incompatible = ConvexCLIClient(
       runner: FakeConvexCommandRunner(responses: [commandResult(version)]),
       runtimeResolver: StaticConvexRuntimeResolver(path: "/portdeck/runtime/convex")
     )
-    await #expect(throws: ConvexCLIError.incompatibleRuntime(currentVersion: version)) {
+    await #expect(throws: ConvexCLIError.unsupportedCLI(currentVersion: version)) {
       try await incompatible.fetchProductionHealth(for: candidate, target: productionTarget())
     }
   }
 }
 
-@Test func classifiesAuthenticationConfigurationAndMalformedManagedRuntimeResponses() async {
+@Test func classifiesAuthenticationConfigurationAndMalformedCLIResponses() async {
   let candidate = ConvexProjectCandidate(projectName: "Demo", packageName: nil, packagePath: "/repo/demo")
   for (message, expected) in [
     ("Insights require to be logged in as a user.", ConvexCLIError.unauthenticated),
@@ -97,7 +97,7 @@ import Testing
   }
 }
 
-@Test func logsInThroughTheManagedRuntimeAndRedactsCredentialLikeFailures() async throws {
+@Test func logsInThroughTheExternalCLIAndRedactsCredentialLikeFailures() async throws {
   let candidate = ConvexProjectCandidate(projectName: "Demo", packageName: nil, packagePath: "/repo/demo")
   let loginRunner = FakeConvexCommandRunner(responses: [commandResult("1.42.1"), commandResult("")])
   let loginClient = ConvexCLIClient(
@@ -164,7 +164,7 @@ private struct StaticConvexRuntimeResolver: ConvexRuntimeResolving {
 }
 
 private struct FailingConvexRuntimeResolver: ConvexRuntimeResolving {
-  func resolveExecutableURL() throws -> URL { throw ConvexCLIError.missingRuntime }
+  func resolveExecutableURL() throws -> URL { throw ConvexCLIError.missingCLI }
 }
 
 private enum FakeConvexRunnerError: Error { case missingResponse }

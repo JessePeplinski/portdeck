@@ -36,6 +36,10 @@ checksum_filename="$(/usr/bin/awk 'NR == 1 {print $2}' "$checksum_file")"
   || fail "checksum file does not name $release_asset"
 actual_checksum="$(/usr/bin/shasum -a 256 "$release_zip" | /usr/bin/awk '{print $1}')"
 [[ "$actual_checksum" == "$expected_checksum" ]] || fail "ZIP SHA-256 does not match"
+maximum_zip_size_bytes=45000000
+zip_size_bytes="$(/usr/bin/stat -f '%z' "$release_zip")"
+[[ "$zip_size_bytes" -le "$maximum_zip_size_bytes" ]] \
+  || fail "ZIP is ${zip_size_bytes} bytes; maximum is ${maximum_zip_size_bytes} bytes"
 
 verification_root="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/portdeck-production-verify.XXXXXX")"
 # macOS normally provides TMPDIR with a trailing slash. Canonicalize the new
@@ -100,11 +104,8 @@ main_executable="$app_bundle/Contents/MacOS/PortDeckMac"
 runtime_root="$app_bundle/Contents/Resources/PortDeckRuntime"
 bundled_node="$runtime_root/bin/node"
 bundled_cli="$runtime_root/portdeck-cli.js"
-provider_root="$app_bundle/Contents/Resources/ProviderRuntimes"
 licenses_root="$app_bundle/Contents/Resources/Licenses"
 approved_icon="$app_bundle/Contents/Resources/PortDeck.icns"
-manifest_path="$licenses_root/Provider-Runtime-MANIFEST.json"
-notices_path="$licenses_root/Provider-Runtime-THIRD-PARTY-NOTICES.txt"
 
 require_file "$info_plist"
 require_executable "$main_executable"
@@ -114,12 +115,10 @@ require_file "$approved_icon"
 require_file "$licenses_root/PortDeck-LICENSE.txt"
 require_file "$licenses_root/Node.js-LICENSE.txt"
 require_file "$licenses_root/PortDeck-Helper-THIRD-PARTY-NOTICES.txt"
-require_file "$licenses_root/Railway-LICENSE.txt"
-require_file "$licenses_root/flyctl-LICENSE.txt"
-require_file "$manifest_path"
-require_file "$notices_path"
 [[ ! -e "$app_bundle/Contents/Resources/.portdeck-source-development" ]] \
   || fail "production app enables source-development runtime fallback"
+[[ ! -e "$app_bundle/Contents/Resources/ProviderRuntimes" ]] \
+  || fail "production app bundles provider CLIs"
 
 /usr/bin/plutil -lint "$info_plist" >/dev/null
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$info_plist")" == "PortDeckMac" ]] \
@@ -151,6 +150,32 @@ approved_icon_sha256="$(/usr/libexec/PlistBuddy -c 'Print :PortDeckApprovedIconS
   || fail "production icon does not match its approved checksum"
 /usr/bin/iconutil --convert iconset --output "$verification_root/PortDeck.iconset" "$approved_icon" >/dev/null
 
+maximum_app_size_kib=112640
+maximum_file_count=9
+app_size_kib="$(/usr/bin/du -sk "$app_bundle" | /usr/bin/awk '{print $1}')"
+[[ "$app_size_kib" -le "$maximum_app_size_kib" ]] \
+  || fail "bundle is ${app_size_kib} KiB; maximum is ${maximum_app_size_kib} KiB"
+file_count="$(/usr/bin/find "$app_bundle" -type f | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
+[[ "$file_count" -le "$maximum_file_count" ]] \
+  || fail "bundle contains ${file_count} files; maximum is ${maximum_file_count}"
+
+expected_files="$(/usr/bin/printf '%s\n' \
+  'Contents/Info.plist' \
+  'Contents/MacOS/PortDeckMac' \
+  'Contents/Resources/Licenses/Node.js-LICENSE.txt' \
+  'Contents/Resources/Licenses/PortDeck-Helper-THIRD-PARTY-NOTICES.txt' \
+  'Contents/Resources/Licenses/PortDeck-LICENSE.txt' \
+  'Contents/Resources/PortDeck.icns' \
+  'Contents/Resources/PortDeckRuntime/bin/node' \
+  'Contents/Resources/PortDeckRuntime/portdeck-cli.js' \
+  'Contents/_CodeSignature/CodeResources' | /usr/bin/sort)"
+actual_files="$(/usr/bin/find "$app_bundle" -type f -print | /usr/bin/sed "s#^$app_bundle/##" | /usr/bin/sort)"
+[[ "$actual_files" == "$expected_files" ]] || {
+  echo "Unexpected production app file set:" >&2
+  /usr/bin/diff -u <(/usr/bin/printf '%s\n' "$expected_files") <(/usr/bin/printf '%s\n' "$actual_files") >&2 || true
+  exit 1
+}
+
 if /usr/bin/find "$app_bundle" -type f \( -name '.env' -o -name '.env.*' \) -print -quit | /usr/bin/grep -q .; then
   fail "bundle contains an .env file"
 fi
@@ -166,9 +191,6 @@ if /usr/bin/find "$app_bundle" -type f \( \
 \) -print -quit | /usr/bin/grep -q .; then
   fail "bundle contains a credential or auth-store file"
 fi
-[[ ! -e "$provider_root/node/node_modules/@fastify/static/test" ]] \
-  || fail "bundle contains @fastify/static test-only archive fixtures"
-
 while IFS= read -r -d '' symlink; do
   resolved_target="$(/bin/realpath "$symlink" 2>/dev/null)" \
     || fail "bundle contains a broken symlink: $symlink"
@@ -186,20 +208,6 @@ done
 
 "$bundled_node" "$script_root/scan-release-bundle.mjs" "$app_bundle" \
   || fail "bundle secret scan failed"
-
-for native_package in bare-fs bare-path bare-url; do
-  prebuild_root="$provider_root/node/node_modules/$native_package/prebuilds"
-  required_prebuild="$prebuild_root/darwin-arm64/$native_package.bare"
-  [[ -f "$required_prebuild" ]] \
-    || fail "$native_package is missing its darwin-arm64 prebuild"
-  [[ "$(/usr/bin/lipo -archs "$required_prebuild" 2>/dev/null)" == "$release_architecture" ]] \
-    || fail "$native_package darwin-arm64 prebuild is not arm64-only"
-  if /usr/bin/find "$prebuild_root" \
-    -mindepth 1 -maxdepth 1 -type d ! -name darwin-arm64 -print -quit \
-    | /usr/bin/grep -q .; then
-    fail "$native_package contains a foreign-platform prebuild"
-  fi
-done
 
 macho_count=0
 outer_signature_details="$(/usr/bin/codesign -dvvv "$app_bundle" 2>&1)"
@@ -264,142 +272,10 @@ fi
 
 [[ "$($bundled_node --version)" == "v${node_version}" ]] \
   || fail "bundled Node.js is not v${node_version}"
-[[ "$(/usr/bin/shasum -a 256 "$licenses_root/Railway-LICENSE.txt" | /usr/bin/awk '{print $1}')" == "$railway_license_sha256" ]] \
-  || fail "Railway license does not match its pinned source"
-[[ "$(/usr/bin/shasum -a 256 "$licenses_root/flyctl-LICENSE.txt" | /usr/bin/awk '{print $1}')" == "$fly_license_sha256" ]] \
-  || fail "flyctl license does not match its pinned source"
-[[ "$(/usr/bin/shasum -a 256 "$provider_root/node/node_modules/precond/LICENSE" | /usr/bin/awk '{print $1}')" == "$precond_license_sha256" ]] \
-  || fail "precond license does not match its pinned source"
-require_executable "$provider_root/convex/bin/convex"
-require_executable "$provider_root/supabase/bin/supabase"
-require_executable "$provider_root/cloudflare/bin/wrangler"
-require_executable "$provider_root/railway/bin/railway"
-require_executable "$provider_root/fly/bin/flyctl"
-require_executable "$provider_root/netlify/bin/netlify"
-
-"$bundled_node" -e '
-  const crypto = require("node:crypto");
-  const fs = require("node:fs");
-  const path = require("node:path");
-  const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-  const installRoot = process.argv[2];
-  const rootLockfile = fs.readFileSync(process.argv[3]);
-  const notices = fs.readFileSync(process.argv[4], "utf8");
-  const expected = {
-    convex: "1.42.1",
-    supabase: "2.109.1",
-    wrangler: "4.111.0",
-    railway: "5.26.2",
-    flyctl: "0.4.71",
-    netlify: "26.2.0",
-  };
-  if (manifest.schemaVersion !== "1") throw new Error("Unexpected runtime manifest schema");
-  if (manifest.spdxLicenseListVersion !== "6.11.0") {
-    throw new Error("Unexpected SPDX license-list version");
-  }
-  const lockfileSha256 = crypto.createHash("sha256").update(rootLockfile).digest("hex");
-  if (manifest.rootLockfileSha256 !== lockfileSha256) {
-    throw new Error("Runtime manifest does not match the repository lockfile");
-  }
-  if (!Array.isArray(manifest.packages) || manifest.packageCount !== manifest.packages.length) {
-    throw new Error("Runtime package count is inconsistent");
-  }
-  for (const [provider, version] of Object.entries(expected)) {
-    const actual = provider === "flyctl"
-      ? manifest.nativeRuntimes?.flyctl?.version
-      : manifest.providerVersions?.[provider];
-    if (actual !== version) throw new Error(`${provider} version mismatch`);
-  }
-  if (manifest.nativeRuntimes?.railway?.archiveSha256 !== "816414da5f182d8ee7ed66f6cf607bf5d37f8e55d367395e8133ef321e9f8ee4") {
-    throw new Error("Railway archive checksum metadata mismatch");
-  }
-  if (manifest.nativeRuntimes?.flyctl?.archiveSha256 !== "a89085595d7da7d4ee3a8647feb700a52702eb835591e78feae47fcd2d98bfbe") {
-    throw new Error("flyctl archive checksum metadata mismatch");
-  }
-  const requiredPrunedPackages = new Map([
-    ["@netlify/ai", "0.4.2"],
-    ["fsevents", "2.3.3"],
-  ]);
-  for (const [name, version] of requiredPrunedPackages) {
-    const entry = manifest.prunedPackages?.find((candidate) => candidate.name === name);
-    if (entry?.version !== version || !entry.reason) throw new Error(`${name} prune metadata mismatch`);
-  }
-  if (fs.existsSync(path.join(installRoot, "node_modules", "@netlify", "ai"))) {
-    throw new Error("Unlicensed @netlify/ai package was redistributed");
-  }
-  if (fs.existsSync(path.join(installRoot, "node_modules", "fsevents"))) {
-    throw new Error("Universal fsevents package was redistributed");
-  }
-  for (const entry of manifest.packages) {
-    const packageJson = JSON.parse(fs.readFileSync(path.join(installRoot, entry.path, "package.json"), "utf8"));
-    if (packageJson.name !== entry.name || packageJson.version !== entry.version) {
-      throw new Error(`Package manifest mismatch at ${entry.path}`);
-    }
-    if (!entry.license || entry.license === "NOASSERTION") {
-      throw new Error(`Package has no audited license: ${entry.name}@${entry.version}`);
-    }
-    if (!Array.isArray(entry.licenseEvidence) || entry.licenseEvidence.length === 0) {
-      throw new Error(`Package has no auditable license evidence: ${entry.name}@${entry.version}`);
-    }
-    if (!notices.includes(`${entry.name}@${entry.version}`)) {
-      throw new Error(`Package is absent from third-party notices: ${entry.name}@${entry.version}`);
-    }
-    for (const licenseFile of entry.licenseFiles ?? []) {
-      if (!fs.existsSync(path.join(installRoot, entry.path, licenseFile))) {
-        throw new Error(`Missing package license evidence: ${entry.path}/${licenseFile}`);
-      }
-      if (!notices.includes(`--- ${licenseFile} ---`)) {
-        throw new Error(`License evidence is absent from notices: ${entry.path}/${licenseFile}`);
-      }
-    }
-    for (const evidence of entry.licenseEvidence) {
-      if (evidence.kind === "package-file") {
-        if (!entry.licenseFiles.includes(evidence.path)) {
-          throw new Error(`Package-file evidence is inconsistent: ${entry.path}/${evidence.path}`);
-        }
-      } else if (evidence.kind === "spdx-text") {
-        if (evidence.expression !== entry.license
-          || evidence.sourcePackage !== "spdx-license-list@6.11.0"
-          || !Array.isArray(evidence.licenses)
-          || evidence.licenses.length === 0) {
-          throw new Error(`SPDX evidence is inconsistent: ${entry.name}@${entry.version}`);
-        }
-        for (const license of evidence.licenses) {
-          if (!license.identifier || !/^[0-9a-f]{64}$/.test(license.textSha256)) {
-            throw new Error(`SPDX text metadata is invalid: ${entry.name}@${entry.version}`);
-          }
-          if (!notices.includes(`Canonical SPDX license text: ${license.identifier}`)
-            || !notices.includes(`SHA-256: ${license.textSha256}`)) {
-            throw new Error(`Canonical SPDX text is absent from notices: ${license.identifier}`);
-          }
-        }
-      } else {
-        throw new Error(`Unknown license evidence kind: ${entry.name}@${entry.version}`);
-      }
-    }
-  }
-' "$manifest_path" "$provider_root/node" "$repo_root/package-lock.json" "$notices_path"
-
-run_provider() {
-  /usr/bin/env -i \
-    HOME="$isolated_home" \
-    CFFIXED_USER_HOME="$isolated_home" \
-    PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
-    CI=1 \
-    NO_COLOR=1 \
-    "$@"
-}
-
-[[ "$(run_provider "$provider_root/convex/bin/convex" --version)" == "$convex_version" ]]
-[[ "$(run_provider "$provider_root/supabase/bin/supabase" --version)" == "$supabase_version" ]]
-[[ "$(run_provider "$provider_root/cloudflare/bin/wrangler" --version)" == "$wrangler_version" ]]
-[[ "$(run_provider "$provider_root/railway/bin/railway" --version)" == "railway $railway_version" ]]
-run_provider "$provider_root/fly/bin/flyctl" version | /usr/bin/grep -Fq "flyctl v${fly_version}"
-run_provider "$provider_root/netlify/bin/netlify" --version | /usr/bin/grep -Fq "netlify-cli/${netlify_version} darwin-arm64 node-v${node_version}"
 
 swift test \
   --package-path "$package_root" \
-  --filter 'RuntimeResolver|Vercel|degradesManagedRuntimeFailuresWithoutLosingProductionMetadata|ModelMapsSetupFailures|reportsCloudflareSetupStates|reportsFreshSupabaseRuntimeAuthenticationRateLimitAndFailureStates'
+  --filter 'RuntimeResolver|ExternalProviderCLIResolver|Vercel|degradesExternalCLIFailuresWithoutLosingProductionMetadata|ModelMapsSetupFailures|reportsCloudflareSetupStates|reportsFreshSupabaseRuntimeAuthenticationRateLimitAndFailureStates'
 
 if /usr/bin/env -i PATH="/usr/bin:/bin:/usr/sbin:/sbin" /bin/sh -c 'command -v node' >/dev/null 2>&1; then
   fail "scrubbed verification PATH still contains a system Node.js"
@@ -538,4 +414,5 @@ echo "Notarization: stapled ticket valid"
 echo "Gatekeeper: accepted quarantined extracted app"
 echo "External Local/Projects: status, save, start, restart, port switch, stop passed"
 echo "LaunchServices: quarantined extracted PortDeck.app launch passed"
-echo "Managed provider runtimes: exact versions launched with scrubbed PATH and isolated HOME"
+echo "Provider CLIs: external-only; no provider executables or dependencies bundled"
+echo "Size: ${app_size_kib} KiB app, ${zip_size_bytes} byte ZIP"

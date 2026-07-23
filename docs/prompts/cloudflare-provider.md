@@ -48,14 +48,11 @@ The provider is status-only. It must not read application payloads, tail logs, i
   - `wrangler deployments status --name <worker> --json`
 - Use `CLOUDFLARE_ACCOUNT_ID` per process for explicit account scoping. Never change persistent Wrangler account or project configuration.
 
-## Runtime and authentication
+## CLI and authentication
 
-- Add an exact pinned Wrangler dependency to PortDeck itself; never dynamically execute `latest`.
-- Follow the managed-runtime pattern:
-  1. `PORTDECK_WRANGLER_BIN` authoritative development/test override;
-  2. packaged resource lookup at `Contents/Resources/ProviderRuntimes/cloudflare/bin/wrangler`;
-  3. PortDeck root `node_modules/.bin/wrangler` lookup for source builds.
-- Validate the resolved executable reports the exact pinned version before caching it.
+- Support Wrangler `>=4.111.0 <5.0.0`.
+- Resolve `PORTDECK_WRANGLER_BIN` authoritatively, then the user's login shell, `/opt/homebrew/bin/wrangler`, and `/usr/local/bin/wrangler`.
+- Never search linked projects or PortDeck's dependency tree, and never bundle or auto-install Wrangler.
 - Never search linked projects for their Wrangler executable or alter their dependencies.
 - Wrangler owns authentication. Use `wrangler whoami --json` to inspect connection/account state.
 - Never invoke `wrangler login`, `wrangler logout`, `wrangler auth token`, deploy commands, or any command that prints/changes credentials.

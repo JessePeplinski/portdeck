@@ -40,7 +40,7 @@ import Testing
   #expect(commands.allSatisfy { $0.environment["HOME"] == "/Users/tester" })
 }
 
-@Test func validatesExactNetlifyIdentityVersionDarwinArchitectureAndNodeOnce() async throws {
+@Test func validatesNetlifyVersionRangeIdentityDarwinArchitectureAndNodeOnce() async throws {
   let runner = FixtureNetlifyRunner(fixtures: standardNetlifyFixtures())
   let client = makeNetlifyClient(runner: runner)
   let evidence = try await client.runtimeEvidence()

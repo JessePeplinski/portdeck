@@ -124,10 +124,10 @@ final class NetlifyStatusModel: ObservableObject {
   private func applyConnectionError(_ error: Error) {
     let message = error.localizedDescription
     switch error {
-    case NetlifyCLIError.missingRuntime:
-      connectionState = .missingRuntime
-    case NetlifyCLIError.incompatibleRuntime(let currentVersion):
-      connectionState = .incompatibleRuntime(currentVersion: currentVersion)
+    case NetlifyCLIError.missingCLI:
+      connectionState = .missingCLI
+    case NetlifyCLIError.unsupportedCLI(let currentVersion):
+      connectionState = .unsupportedCLI(currentVersion: currentVersion)
     case NetlifyCLIError.authenticationRequired:
       connectionState = .authenticationRequired
     case NetlifyCLIError.rateLimited:

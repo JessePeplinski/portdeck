@@ -45,16 +45,16 @@ import Testing
   #expect(!commands.contains { $0.arguments.contains("status") || $0.arguments.contains("link") })
 }
 
-@Test func validatesExactRailwayVersionOnceAndRejectsIncompatibleRuntime() async throws {
+@Test func validatesRailwayVersionRangeOnceAndRejectsUnsupportedCLIs() async throws {
   let runner = FixtureRailwayRunner(fixtures: standardFixtures())
   let client = makeRailwayClient(runner: runner)
   _ = try await client.fetchSnapshot()
   _ = try await client.fetchSnapshot()
   #expect(await runner.receivedCommands.filter { $0.arguments == ["--version"] }.count == 1)
 
-  for output in ["railway 5.26.1", "5.26.2", "railway 5.26.2-beta.1"] {
+  for output in ["railway 5.26.1", "railway 6.0.0", "railway 5.26.2-beta.1"] {
     let incompatible = makeRailwayClient(runner: FixtureRailwayRunner(fixtures: ["--version": output]))
-    await #expect(throws: RailwayCLIError.incompatibleRuntime(currentVersion: output)) {
+    await #expect(throws: RailwayCLIError.unsupportedCLI(currentVersion: output)) {
       try await incompatible.fetchSnapshot()
     }
   }

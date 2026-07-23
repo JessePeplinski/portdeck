@@ -44,12 +44,12 @@ import Testing
 }
 
 @MainActor
-@Test func degradesManagedRuntimeFailuresWithoutLosingProductionMetadataAndRefreshesChangedCandidates() async {
+@Test func degradesExternalCLIFailuresWithoutLosingProductionMetadataAndRefreshesChangedCandidates() async {
   let first = ConvexProjectCandidate(projectName: "Old", packageName: nil, packagePath: "/old")
   let second = ConvexProjectCandidate(projectName: "New", packageName: nil, packagePath: "/new")
   let resolver = MutableConvexResolver(candidates: [first])
   let client = FakeConvexClient(results: [
-    .failure(ConvexCLIError.missingRuntime),
+    .failure(ConvexCLIError.missingCLI),
     .success(response(insights: [insight(severity: "warning")]))
   ])
   let model = ConvexStatusModel(
@@ -73,7 +73,7 @@ import Testing
 }
 
 @MainActor
-@Test func connectsWithTheManagedRuntimeThenRefreshesAllCandidates() async {
+@Test func connectsWithTheExternalCLIThenRefreshesAllCandidates() async {
   let candidate = ConvexProjectCandidate(projectName: "PortDeck", packageName: nil, packagePath: "/repo")
   let client = FakeConvexClient(results: [
     .failure(ConvexCLIError.unauthenticated),

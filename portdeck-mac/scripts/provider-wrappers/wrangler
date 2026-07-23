@@ -1,5 +1,0 @@
-#!/bin/sh
-set -eu
-provider_root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
-exec "$provider_root/../PortDeckRuntime/bin/node" \
-  "$provider_root/node/node_modules/wrangler/bin/wrangler.js" "$@"

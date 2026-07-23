@@ -23,6 +23,30 @@ struct ConvexStatusView: View {
       }
       .frame(maxWidth: .infinity)
       .padding(.vertical, 34)
+    } else if let project = model.projects.first,
+      model.projects.allSatisfy({ $0.availability == project.availability }),
+      project.availability == .missingCLI
+    {
+      ProviderCLISetupView(
+        systemImage: "terminal",
+        title: "Convex CLI required",
+        detail: "Install a supported Convex CLI. PortDeck reuses its local session and never installs or upgrades it automatically.",
+        installCommand: ConvexRuntimeResolver.installCommand,
+        documentationURL: ConvexRuntimeResolver.documentationURL,
+        onRefresh: { Task { await model.refresh() } }
+      )
+    } else if let project = model.projects.first,
+      model.projects.allSatisfy({ $0.availability == project.availability }),
+      project.availability == .unsupportedCLI
+    {
+      ProviderCLISetupView(
+        systemImage: "exclamationmark.triangle",
+        title: "Update Convex CLI",
+        detail: project.message ?? "PortDeck supports \(ConvexCLIClient.supportedVersionRange.displayName).",
+        installCommand: ConvexRuntimeResolver.installCommand,
+        documentationURL: ConvexRuntimeResolver.documentationURL,
+        onRefresh: { Task { await model.refresh() } }
+      )
     } else {
       connectedContent
     }
@@ -192,7 +216,7 @@ private struct ConvexProjectRow: View {
       }
       .buttonStyle(.borderedProminent)
       .disabled(isConnecting)
-    case .ready, .unconfigured, .unavailable:
+    case .ready, .missingCLI, .unsupportedCLI, .unconfigured, .unavailable:
       EmptyView()
     }
   }

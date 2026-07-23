@@ -30,23 +30,23 @@ struct FlyStatusView: View {
           ? "The current Fly account does not have access to any organizations."
           : "The current Fly account does not have access to any apps."
       )
-    case .missingRuntime:
-      setupState(
+    case .missingCLI:
+      ProviderCLISetupView(
         systemImage: "terminal",
-        title: "Fly runtime unavailable",
-        detail: "PortDeck could not find its managed flyctl runtime. This source build expects the pinned development staging path or an explicit test override.",
-        actionTitle: "Try again",
-        actionSystemImage: "arrow.clockwise",
-        action: onRefresh
+        title: "flyctl required",
+        detail: "Install a supported flyctl. PortDeck reuses its local session and never installs or upgrades it automatically.",
+        installCommand: FlyRuntimeResolver.installCommand,
+        documentationURL: FlyRuntimeResolver.documentationURL,
+        onRefresh: onRefresh
       )
-    case .incompatibleRuntime(let currentVersion):
-      setupState(
+    case .unsupportedCLI(let currentVersion):
+      ProviderCLISetupView(
         systemImage: "exclamationmark.triangle",
-        title: "Fly runtime incompatible",
-        detail: "PortDeck found \(currentVersion), but this build requires flyctl \(FlyCLIClient.pinnedVersion) for Darwin.",
-        actionTitle: "Try again",
-        actionSystemImage: "arrow.clockwise",
-        action: onRefresh
+        title: "Update flyctl",
+        detail: "PortDeck found \(currentVersion). It supports flyctl \(FlyCLIClient.supportedVersionRange.displayName) for Darwin.",
+        installCommand: FlyRuntimeResolver.installCommand,
+        documentationURL: FlyRuntimeResolver.documentationURL,
+        onRefresh: onRefresh
       )
     case .authenticationRequired:
       setupState(

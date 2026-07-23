@@ -79,7 +79,10 @@ public struct SystemCloudflareCommandRunner: CloudflareCommandRunning {
     let process = Process()
     process.executableURL = executableURL
     process.arguments = arguments
-    process.environment = environment
+    process.environment = ProviderCLIExecutionEnvironment.make(
+      executableURL: executableURL,
+      base: environment
+    )
     process.currentDirectoryURL = currentDirectoryURL
     process.standardOutput = stdoutHandle
     process.standardError = stderrHandle
@@ -104,7 +107,7 @@ public struct SystemCloudflareCommandRunner: CloudflareCommandRunning {
 }
 
 public actor CloudflareCLIClient: CloudflareCLIClientProtocol {
-  public static let pinnedVersion = CloudflareRuntimeResolver.pinnedVersion
+  public static let supportedVersionRange = CloudflareRuntimeResolver.supportedVersionRange
   public static let loginCommand = "wrangler login"
 
   private let runner: any CloudflareCommandRunning
@@ -270,9 +273,15 @@ public actor CloudflareCLIClient: CloudflareCLIClientProtocol {
       currentDirectoryURL: currentDirectoryURL
     )
     guard result.terminationStatus == 0 else { throw classifiedFailure(from: result) }
-    let version = result.stdoutString.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard version == Self.pinnedVersion else {
-      throw CloudflareCLIError.incompatibleRuntime(currentVersion: String(version.prefix(80)))
+    let output = result.stdoutString.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !output.isEmpty else {
+      throw CloudflareCLIError.invalidResponse("Could not read the installed Wrangler version.")
+    }
+    guard let version = ProviderCLIVersion.first(in: output) else {
+      throw CloudflareCLIError.unsupportedCLI(currentVersion: String(output.prefix(80)))
+    }
+    guard Self.supportedVersionRange.contains(version) else {
+      throw CloudflareCLIError.unsupportedCLI(currentVersion: String(output.prefix(80)))
     }
     cachedExecutableURL = executableURL
     return executableURL
@@ -395,8 +404,8 @@ public actor CloudflareCLIClient: CloudflareCLIClientProtocol {
 }
 
 public enum CloudflareCLIError: LocalizedError, Equatable, Sendable {
-  case missingRuntime
-  case incompatibleRuntime(currentVersion: String)
+  case missingCLI
+  case unsupportedCLI(currentVersion: String)
   case authenticationRequired
   case rateLimited
   case commandFailed(String)
@@ -404,10 +413,10 @@ public enum CloudflareCLIError: LocalizedError, Equatable, Sendable {
 
   public var errorDescription: String? {
     switch self {
-    case .missingRuntime:
-      return "PortDeck's managed Wrangler runtime is unavailable."
-    case .incompatibleRuntime(let currentVersion):
-      return "PortDeck found Wrangler \(currentVersion), but this build requires exactly \(CloudflareCLIClient.pinnedVersion)."
+    case .missingCLI:
+      return "Wrangler is not installed."
+    case .unsupportedCLI(let currentVersion):
+      return "PortDeck found Wrangler \(currentVersion), but supports \(CloudflareCLIClient.supportedVersionRange.displayName)."
     case .authenticationRequired:
       return "Cloudflare authentication required. Run `\(CloudflareCLIClient.loginCommand)` in Terminal."
     case .rateLimited:

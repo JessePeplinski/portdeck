@@ -66,10 +66,10 @@ final class SupabaseStatusModel: ObservableObject {
       let message = error.localizedDescription
       errorMessage = message
       switch error {
-      case SupabaseCLIError.missingRuntime:
-        connectionState = .missingRuntime
-      case SupabaseCLIError.incompatibleRuntime(let currentVersion):
-        connectionState = .incompatibleRuntime(currentVersion: currentVersion)
+      case SupabaseCLIError.missingCLI:
+        connectionState = .missingCLI
+      case SupabaseCLIError.unsupportedCLI(let currentVersion):
+        connectionState = .unsupportedCLI(currentVersion: currentVersion)
       case SupabaseCLIError.authenticationRequired:
         connectionState = .authenticationRequired
       case SupabaseCLIError.rateLimited:

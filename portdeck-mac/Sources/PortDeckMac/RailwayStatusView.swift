@@ -28,23 +28,23 @@ struct RailwayStatusView: View {
         title: "No Railway projects",
         detail: "The current Railway account does not have access to any projects."
       )
-    case .missingRuntime:
-      setupState(
+    case .missingCLI:
+      ProviderCLISetupView(
         systemImage: "terminal",
-        title: "Railway runtime unavailable",
-        detail: "PortDeck could not find its managed Railway CLI runtime. Reinstall dependencies or rebuild PortDeck.",
-        actionTitle: "Try again",
-        actionSystemImage: "arrow.clockwise",
-        action: onRefresh
+        title: "Railway CLI required",
+        detail: "Install a supported Railway CLI. PortDeck reuses its local session and never installs or upgrades it automatically.",
+        installCommand: RailwayRuntimeResolver.installCommand,
+        documentationURL: RailwayRuntimeResolver.documentationURL,
+        onRefresh: onRefresh
       )
-    case .incompatibleRuntime(let currentVersion):
-      setupState(
+    case .unsupportedCLI(let currentVersion):
+      ProviderCLISetupView(
         systemImage: "exclamationmark.triangle",
-        title: "Railway runtime incompatible",
-        detail: "PortDeck found Railway CLI \(currentVersion), but this build requires exactly \(RailwayCLIClient.pinnedVersion).",
-        actionTitle: "Try again",
-        actionSystemImage: "arrow.clockwise",
-        action: onRefresh
+        title: "Update Railway CLI",
+        detail: "Version \(currentVersion) is installed. PortDeck supports \(RailwayCLIClient.supportedVersionRange.displayName).",
+        installCommand: RailwayRuntimeResolver.installCommand,
+        documentationURL: RailwayRuntimeResolver.documentationURL,
+        onRefresh: onRefresh
       )
     case .authenticationRequired:
       setupState(

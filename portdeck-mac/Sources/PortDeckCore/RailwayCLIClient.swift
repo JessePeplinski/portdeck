@@ -74,7 +74,10 @@ public struct SystemRailwayCommandRunner: RailwayCommandRunning {
     let process = Process()
     process.executableURL = executableURL
     process.arguments = arguments
-    process.environment = environment
+    process.environment = ProviderCLIExecutionEnvironment.make(
+      executableURL: executableURL,
+      base: environment
+    )
     process.currentDirectoryURL = currentDirectoryURL
     process.standardOutput = stdoutHandle
     process.standardError = stderrHandle
@@ -99,7 +102,7 @@ public struct SystemRailwayCommandRunner: RailwayCommandRunning {
 }
 
 public actor RailwayCLIClient: RailwayCLIClientProtocol {
-  public static let pinnedVersion = RailwayRuntimeResolver.pinnedVersion
+  public static let supportedVersionRange = RailwayRuntimeResolver.supportedVersionRange
   public static let loginCommand = "railway login"
   public static let maximumConcurrentScopedCommands = 4
 
@@ -206,9 +209,14 @@ public actor RailwayCLIClient: RailwayCLIClientProtocol {
     )
     guard result.terminationStatus == 0 else { throw Self.classifiedFailure(from: result) }
     let output = result.stdoutString.trimmingCharacters(in: .whitespacesAndNewlines)
-    let expected = "railway \(Self.pinnedVersion)"
-    guard output == expected else {
-      throw RailwayCLIError.incompatibleRuntime(currentVersion: String(output.prefix(80)))
+    guard !output.isEmpty else {
+      throw RailwayCLIError.invalidResponse("Could not read the installed Railway CLI version.")
+    }
+    guard let version = ProviderCLIVersion.first(in: output) else {
+      throw RailwayCLIError.unsupportedCLI(currentVersion: String(output.prefix(80)))
+    }
+    guard Self.supportedVersionRange.contains(version) else {
+      throw RailwayCLIError.unsupportedCLI(currentVersion: String(output.prefix(80)))
     }
     cachedExecutableURL = executableURL
     return executableURL
@@ -416,8 +424,8 @@ public actor RailwayCLIClient: RailwayCLIClientProtocol {
 }
 
 public enum RailwayCLIError: LocalizedError, Equatable, Sendable {
-  case missingRuntime
-  case incompatibleRuntime(currentVersion: String)
+  case missingCLI
+  case unsupportedCLI(currentVersion: String)
   case authenticationRequired
   case rateLimited
   case commandFailed(String)
@@ -425,10 +433,10 @@ public enum RailwayCLIError: LocalizedError, Equatable, Sendable {
 
   public var errorDescription: String? {
     switch self {
-    case .missingRuntime:
-      return "PortDeck's managed Railway runtime is unavailable."
-    case .incompatibleRuntime(let currentVersion):
-      return "PortDeck found Railway CLI \(currentVersion), but this build requires exactly \(RailwayCLIClient.pinnedVersion)."
+    case .missingCLI:
+      return "Railway CLI is not installed."
+    case .unsupportedCLI(let currentVersion):
+      return "PortDeck found Railway CLI \(currentVersion), but supports \(RailwayCLIClient.supportedVersionRange.displayName)."
     case .authenticationRequired:
       return "Railway authentication required. Run `\(RailwayCLIClient.loginCommand)` in Terminal."
     case .rateLimited:

@@ -87,7 +87,10 @@ public struct SystemFlyCommandRunner: FlyCommandRunning {
     let process = Process()
     process.executableURL = executableURL
     process.arguments = arguments
-    process.environment = environment
+    process.environment = ProviderCLIExecutionEnvironment.make(
+      executableURL: executableURL,
+      base: environment
+    )
     process.currentDirectoryURL = currentDirectoryURL
     process.standardOutput = stdoutHandle
     process.standardError = stderrHandle
@@ -119,7 +122,7 @@ public struct SystemFlyCommandRunner: FlyCommandRunning {
 }
 
 public actor FlyCLIClient: FlyCLIClientProtocol {
-  public static let pinnedVersion = FlyRuntimeResolver.pinnedVersion
+  public static let supportedVersionRange = FlyRuntimeResolver.supportedVersionRange
   public static let loginCommand = "flyctl auth login"
   public static let maximumConcurrentScopedCommands = 4
 
@@ -289,14 +292,15 @@ public actor FlyCLIClient: FlyCLIClientProtocol {
     do {
       response = try JSONDecoder().decode(FlyVersionResponse.self, from: result.stdout)
     } catch {
-      throw FlyCLIError.malformedOutput("Could not parse the Fly runtime version.")
+      throw FlyCLIError.malformedOutput("Could not parse the flyctl version.")
     }
     let supportedArchitectures: Set<String> = ["arm64", "x86_64"]
-    guard response.name == "flyctl", response.version == Self.pinnedVersion,
+    guard let version = ProviderCLIVersion(string: response.version),
+      response.name == "flyctl", Self.supportedVersionRange.contains(version),
       response.os == "darwin", supportedArchitectures.contains(response.architecture)
     else {
       let description = "\(response.name) \(response.version) \(response.os)/\(response.architecture)"
-      throw FlyCLIError.incompatibleRuntime(currentVersion: String(description.prefix(120)))
+      throw FlyCLIError.unsupportedCLI(currentVersion: String(description.prefix(120)))
     }
     cachedExecutableURL = executableURL
     return executableURL
@@ -465,8 +469,8 @@ public actor FlyCLIClient: FlyCLIClientProtocol {
 }
 
 public enum FlyCLIError: LocalizedError, Equatable, Sendable {
-  case missingRuntime
-  case incompatibleRuntime(currentVersion: String)
+  case missingCLI
+  case unsupportedCLI(currentVersion: String)
   case authenticationRequired
   case rateLimited
   case cancelled
@@ -476,10 +480,10 @@ public enum FlyCLIError: LocalizedError, Equatable, Sendable {
 
   public var errorDescription: String? {
     switch self {
-    case .missingRuntime:
-      return "PortDeck's managed Fly runtime is unavailable."
-    case .incompatibleRuntime(let currentVersion):
-      return "PortDeck found \(currentVersion), but this build requires flyctl \(FlyCLIClient.pinnedVersion) for Darwin."
+    case .missingCLI:
+      return "flyctl is not installed."
+    case .unsupportedCLI(let currentVersion):
+      return "PortDeck found \(currentVersion), but supports flyctl \(FlyCLIClient.supportedVersionRange.displayName) for Darwin."
     case .authenticationRequired:
       return "Fly authentication required. Run `\(FlyCLIClient.loginCommand)` in Terminal."
     case .rateLimited:

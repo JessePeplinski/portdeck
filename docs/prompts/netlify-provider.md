@@ -6,13 +6,13 @@ Add an account-wide Netlify provider to PortDeck after Fly.io. Show accessible s
 
 ## Verified CLI contract
 
-- Runtime: exact root dependency `netlify-cli` 26.2.0, whose published package requires Node.js 20.12.2 or newer and exposes both `netlify` and `ntl` through `bin/run.js`.
+- CLI: support `netlify-cli >=26.2.0 <27.0.0`, with Node.js 20.12.2 or newer.
 - Package integrity: `sha512-3jQg9WQoa1H74478fHZisj3T8dLM67x4F4Sgi7kROBHzJD9NNCYYw99dKRYWJOtEa1dUNyZu2W4VTdPzA1kjiw==`; license: MIT; tarball: `https://registry.npmjs.org/netlify-cli/-/netlify-cli-26.2.0.tgz`.
 - Version evidence: `netlify-cli/26.2.0 darwin-arm64 node-v25.8.1` in the implementation environment. Accept Darwin arm64 or x64 and validate the minimum Node version before caching the runtime.
 - Account membership: `netlify sites:list --json`. The command documents that it lists all projects the user can access. The CLI paginates in batches of 100 but stops after 10 pages, so exactly 1,000 returned sites is not authoritative and must surface as incomplete.
 - Latest production deployment: `netlify api listSiteDeploys --data '{"site_id":"SITE_ID","production":true,"per_page":1}'`. Every request must carry the exact site ID returned by the account list.
 - Authentication: use only Netlify CLI's existing user session. Never invoke login, export a token, read Netlify credential files directly, or accept token inheritance from PortDeck's parent environment.
-- There are no official standalone macOS release binaries for 26.2.0. Direct-download packaging therefore needs the locked npm runtime and a compatible Node.js runtime under the documented app resource path.
+- PortDeck uses the user's installed Netlify CLI and does not redistribute it.
 
 Official sources verified on 2026-07-16:
 
@@ -27,10 +27,11 @@ Official sources verified on 2026-07-16:
 Resolve in this order only:
 
 1. authoritative `PORTDECK_NETLIFY_BIN` development/test override;
-2. `PortDeck.app/Contents/Resources/ProviderRuntimes/netlify/bin/netlify`;
-3. PortDeck's root `node_modules/.bin/netlify` for source builds.
+2. the user's login shell;
+3. `/opt/homebrew/bin/netlify`;
+4. `/usr/local/bin/netlify`.
 
-Do not search PATH, Homebrew, login shells, Netlify configuration directories, monitored repositories, or arbitrary parent directories. An invalid override is a hard failure and never falls through. Do not download a runtime from the app.
+Do not search Netlify configuration directories, monitored repositories, PortDeck dependencies, or arbitrary parent directories. An invalid override is a hard failure and never falls through. Do not download or install a CLI from the app.
 
 ## Secure execution boundary
 

@@ -5,72 +5,41 @@ public protocol SupabaseRuntimeResolving: Sendable {
 }
 
 public struct SupabaseRuntimeResolver: SupabaseRuntimeResolving, @unchecked Sendable {
-  public static let pinnedVersion = "2.109.1"
+  public static let supportedVersionRange = SupportedProviderCLIVersionRange(
+    minimumInclusive: "2.109.1",
+    maximumExclusive: "3.0.0"
+  )
+  public static let installCommand = "brew install supabase/tap/supabase"
+  public static let documentationURL = "https://supabase.com/docs/guides/local-development/cli/getting-started"
   public static let overrideEnvironmentKey = "PORTDECK_SUPABASE_BIN"
-  public static let bundledRelativePath = "ProviderRuntimes/supabase/bin/supabase"
+  public static let executableName = "supabase"
 
-  private let environment: [String: String]
-  private let bundleResourceURL: URL?
-  private let developmentSearchRoots: [URL]
-  private let fileManager: FileManager
+  private let resolver: ExternalProviderCLIResolver
 
   public init(
     environment: [String: String] = ProcessInfo.processInfo.environment,
-    bundleResourceURL: URL? = Bundle.main.resourceURL,
-    developmentSearchRoots: [URL] = SupabaseRuntimeResolver.defaultDevelopmentSearchRoots(),
-    fileManager: FileManager = .default
+    executableSearchPaths: [String] = ["/opt/homebrew/bin/supabase", "/usr/local/bin/supabase"],
+    fileManager: FileManager = .default,
+    loginShellLookup: @escaping ProviderCLILoginShellLookup = ExternalProviderCLIResolver.lookupInLoginShell
   ) {
-    self.environment = environment
-    self.bundleResourceURL = bundleResourceURL
-    self.developmentSearchRoots = developmentSearchRoots
-    self.fileManager = fileManager
+    resolver = ExternalProviderCLIResolver(
+      executableName: Self.executableName,
+      overrideEnvironmentKey: Self.overrideEnvironmentKey,
+      environment: environment,
+      executableSearchPaths: executableSearchPaths,
+      fileManager: fileManager,
+      loginShellLookup: loginShellLookup
+    )
   }
 
   public func resolveExecutableURL() throws -> URL {
-    if let override = environment[Self.overrideEnvironmentKey] {
-      let overrideURL = URL(fileURLWithPath: override)
-      guard fileManager.isExecutableFile(atPath: overrideURL.path) else {
-        throw SupabaseCLIError.missingRuntime
+    do {
+      guard let executableURL = try resolver.resolveExecutableURL() else {
+        throw SupabaseCLIError.missingCLI
       }
-      return overrideURL
+      return executableURL
+    } catch is ExternalProviderCLIResolutionError {
+      throw SupabaseCLIError.missingCLI
     }
-
-    if let bundledURL = bundleResourceURL?.appendingPathComponent(Self.bundledRelativePath),
-      fileManager.isExecutableFile(atPath: bundledURL.path)
-    {
-      return bundledURL
-    }
-
-    if PackagedRuntimeBoundary.requiresBundledRuntime(
-      bundleResourceURL: bundleResourceURL,
-      fileManager: fileManager
-    ) {
-      throw SupabaseCLIError.missingRuntime
-    }
-
-    for root in developmentSearchRoots {
-      var directory = root.standardizedFileURL
-      for _ in 0..<12 {
-        let candidate = directory.appendingPathComponent("node_modules/.bin/supabase")
-        if fileManager.isExecutableFile(atPath: candidate.path) {
-          return candidate
-        }
-
-        let parent = directory.deletingLastPathComponent()
-        if parent.path == directory.path { break }
-        directory = parent
-      }
-    }
-
-    throw SupabaseCLIError.missingRuntime
-  }
-
-  public static func defaultDevelopmentSearchRoots() -> [URL] {
-    var roots: [URL] = []
-    if let executableURL = Bundle.main.executableURL {
-      roots.append(executableURL.deletingLastPathComponent())
-    }
-    roots.append(Bundle.main.bundleURL)
-    return roots
   }
 }

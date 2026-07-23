@@ -54,8 +54,8 @@ import Testing
 @MainActor
 @Test func reportsFreshSupabaseRuntimeAuthenticationRateLimitAndFailureStates() async {
   let cases: [(SupabaseCLIError, SupabaseConnectionState)] = [
-    (.missingRuntime, .missingRuntime),
-    (.incompatibleRuntime(currentVersion: "2.109.0"), .incompatibleRuntime(currentVersion: "2.109.0")),
+    (.missingCLI, .missingCLI),
+    (.unsupportedCLI(currentVersion: "2.109.0"), .unsupportedCLI(currentVersion: "2.109.0")),
     (.authenticationRequired, .authenticationRequired),
     (.rateLimited, .rateLimited(message: SupabaseCLIError.rateLimited.localizedDescription)),
     (.commandFailed("Unavailable"), .failed(message: "Unavailable")),

@@ -5,72 +5,41 @@ public protocol RailwayRuntimeResolving: Sendable {
 }
 
 public struct RailwayRuntimeResolver: RailwayRuntimeResolving, @unchecked Sendable {
-  public static let pinnedVersion = "5.26.2"
+  public static let supportedVersionRange = SupportedProviderCLIVersionRange(
+    minimumInclusive: "5.26.2",
+    maximumExclusive: "6.0.0"
+  )
+  public static let installCommand = "brew install railway"
+  public static let documentationURL = "https://docs.railway.com/guides/cli"
   public static let overrideEnvironmentKey = "PORTDECK_RAILWAY_BIN"
-  public static let bundledRelativePath = "ProviderRuntimes/railway/bin/railway"
+  public static let executableName = "railway"
 
-  private let environment: [String: String]
-  private let bundleResourceURL: URL?
-  private let developmentSearchRoots: [URL]
-  private let fileManager: FileManager
+  private let resolver: ExternalProviderCLIResolver
 
   public init(
     environment: [String: String] = ProcessInfo.processInfo.environment,
-    bundleResourceURL: URL? = Bundle.main.resourceURL,
-    developmentSearchRoots: [URL] = RailwayRuntimeResolver.defaultDevelopmentSearchRoots(),
-    fileManager: FileManager = .default
+    executableSearchPaths: [String] = ["/opt/homebrew/bin/railway", "/usr/local/bin/railway"],
+    fileManager: FileManager = .default,
+    loginShellLookup: @escaping ProviderCLILoginShellLookup = ExternalProviderCLIResolver.lookupInLoginShell
   ) {
-    self.environment = environment
-    self.bundleResourceURL = bundleResourceURL
-    self.developmentSearchRoots = developmentSearchRoots
-    self.fileManager = fileManager
+    resolver = ExternalProviderCLIResolver(
+      executableName: Self.executableName,
+      overrideEnvironmentKey: Self.overrideEnvironmentKey,
+      environment: environment,
+      executableSearchPaths: executableSearchPaths,
+      fileManager: fileManager,
+      loginShellLookup: loginShellLookup
+    )
   }
 
   public func resolveExecutableURL() throws -> URL {
-    if let override = environment[Self.overrideEnvironmentKey] {
-      let overrideURL = URL(fileURLWithPath: override)
-      guard fileManager.isExecutableFile(atPath: overrideURL.path) else {
-        throw RailwayCLIError.missingRuntime
+    do {
+      guard let executableURL = try resolver.resolveExecutableURL() else {
+        throw RailwayCLIError.missingCLI
       }
-      return overrideURL
+      return executableURL
+    } catch is ExternalProviderCLIResolutionError {
+      throw RailwayCLIError.missingCLI
     }
-
-    if let bundledURL = bundleResourceURL?.appendingPathComponent(Self.bundledRelativePath),
-      fileManager.isExecutableFile(atPath: bundledURL.path)
-    {
-      return bundledURL
-    }
-
-    if PackagedRuntimeBoundary.requiresBundledRuntime(
-      bundleResourceURL: bundleResourceURL,
-      fileManager: fileManager
-    ) {
-      throw RailwayCLIError.missingRuntime
-    }
-
-    for root in developmentSearchRoots {
-      var directory = root.standardizedFileURL
-      for _ in 0..<12 {
-        let candidate = directory.appendingPathComponent("node_modules/.bin/railway")
-        if fileManager.isExecutableFile(atPath: candidate.path) {
-          return candidate
-        }
-
-        let parent = directory.deletingLastPathComponent()
-        if parent.path == directory.path { break }
-        directory = parent
-      }
-    }
-
-    throw RailwayCLIError.missingRuntime
-  }
-
-  public static func defaultDevelopmentSearchRoots() -> [URL] {
-    var roots: [URL] = []
-    if let executableURL = Bundle.main.executableURL {
-      roots.append(executableURL.deletingLastPathComponent())
-    }
-    roots.append(Bundle.main.bundleURL)
-    return roots
   }
 }

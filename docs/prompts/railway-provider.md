@@ -2,11 +2,11 @@
 
 This document records the verified contract for PortDeck's read-only Railway provider.
 
-## Runtime and authentication
+## CLI and authentication
 
-- Pin root dependency `@railway/cli` exactly to 5.26.2.
-- Resolve `PORTDECK_RAILWAY_BIN` authoritatively, then `Contents/Resources/ProviderRuntimes/railway/bin/railway`, then PortDeck-root `node_modules/.bin/railway`.
-- Require exact version output `railway 5.26.2` before caching the executable.
+- Support Railway CLI `>=5.26.2 <6.0.0`.
+- Resolve `PORTDECK_RAILWAY_BIN` authoritatively, then the user's login shell, `/opt/homebrew/bin/railway`, and `/usr/local/bin/railway`.
+- Never search monitored projects or PortDeck's dependency tree, and never bundle or auto-install Railway CLI.
 - Use the Railway CLI-owned user session only. Never initiate login or read credential files.
 - Remove inherited `RAILWAY_TOKEN` and `RAILWAY_API_TOKEN`; set `RAILWAY_NO_TELEMETRY=1` and `DO_NOT_TRACK=1`.
 - Run from a private `0700` PortDeck working directory, capture stdout/stderr separately in `0600` files, discard successful stderr, and sanitize displayed failures.

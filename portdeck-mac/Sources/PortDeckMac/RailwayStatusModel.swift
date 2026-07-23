@@ -97,10 +97,10 @@ final class RailwayStatusModel: ObservableObject {
   private func applyConnectionError(_ error: Error) {
     let message = error.localizedDescription
     switch error {
-    case RailwayCLIError.missingRuntime:
-      connectionState = .missingRuntime
-    case RailwayCLIError.incompatibleRuntime(let currentVersion):
-      connectionState = .incompatibleRuntime(currentVersion: currentVersion)
+    case RailwayCLIError.missingCLI:
+      connectionState = .missingCLI
+    case RailwayCLIError.unsupportedCLI(let currentVersion):
+      connectionState = .unsupportedCLI(currentVersion: currentVersion)
     case RailwayCLIError.authenticationRequired:
       connectionState = .authenticationRequired
     case RailwayCLIError.rateLimited:

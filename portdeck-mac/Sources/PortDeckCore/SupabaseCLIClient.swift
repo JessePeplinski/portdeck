@@ -74,7 +74,10 @@ public struct SystemSupabaseCommandRunner: SupabaseCommandRunning {
     let process = Process()
     process.executableURL = executableURL
     process.arguments = arguments
-    process.environment = environment
+    process.environment = ProviderCLIExecutionEnvironment.make(
+      executableURL: executableURL,
+      base: environment
+    )
     process.currentDirectoryURL = currentDirectoryURL
     process.standardOutput = stdoutHandle
     process.standardError = stderrHandle
@@ -99,7 +102,7 @@ public struct SystemSupabaseCommandRunner: SupabaseCommandRunning {
 }
 
 public actor SupabaseCLIClient: SupabaseCLIClientProtocol {
-  public static let pinnedVersion = SupabaseRuntimeResolver.pinnedVersion
+  public static let supportedVersionRange = SupabaseRuntimeResolver.supportedVersionRange
   public static let loginCommand = "supabase login"
 
   private let runner: any SupabaseCommandRunning
@@ -154,12 +157,15 @@ public actor SupabaseCLIClient: SupabaseCLIClientProtocol {
       throw classifiedFailure(from: result)
     }
 
-    let version = result.stdoutString.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !version.isEmpty else {
-      throw SupabaseCLIError.invalidResponse("Could not read the PortDeck-managed Supabase CLI version.")
+    let output = result.stdoutString.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !output.isEmpty else {
+      throw SupabaseCLIError.invalidResponse("Could not read the installed Supabase CLI version.")
     }
-    guard version == Self.pinnedVersion else {
-      throw SupabaseCLIError.incompatibleRuntime(currentVersion: String(version.prefix(80)))
+    guard let version = ProviderCLIVersion.first(in: output) else {
+      throw SupabaseCLIError.unsupportedCLI(currentVersion: String(output.prefix(80)))
+    }
+    guard Self.supportedVersionRange.contains(version) else {
+      throw SupabaseCLIError.unsupportedCLI(currentVersion: String(output.prefix(80)))
     }
     cachedExecutableURL = executableURL
     return executableURL
@@ -210,8 +216,8 @@ public actor SupabaseCLIClient: SupabaseCLIClientProtocol {
 }
 
 public enum SupabaseCLIError: LocalizedError, Equatable, Sendable {
-  case missingRuntime
-  case incompatibleRuntime(currentVersion: String)
+  case missingCLI
+  case unsupportedCLI(currentVersion: String)
   case authenticationRequired
   case rateLimited
   case commandFailed(String)
@@ -219,10 +225,10 @@ public enum SupabaseCLIError: LocalizedError, Equatable, Sendable {
 
   public var errorDescription: String? {
     switch self {
-    case .missingRuntime:
-      return "PortDeck's managed Supabase runtime is unavailable."
-    case .incompatibleRuntime(let currentVersion):
-      return "PortDeck found Supabase CLI \(currentVersion), but this build requires exactly \(SupabaseCLIClient.pinnedVersion)."
+    case .missingCLI:
+      return "Supabase CLI is not installed."
+    case .unsupportedCLI(let currentVersion):
+      return "PortDeck found Supabase CLI \(currentVersion), but supports \(SupabaseCLIClient.supportedVersionRange.displayName)."
     case .authenticationRequired:
       return "Supabase authentication required. Run `\(SupabaseCLIClient.loginCommand)` in Terminal."
     case .rateLimited:

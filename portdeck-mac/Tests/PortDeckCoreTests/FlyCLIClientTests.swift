@@ -47,7 +47,7 @@ import Testing
   #expect(commands.allSatisfy { $0.environment["NO_COLOR"] == "1" })
 }
 
-@Test func validatesExactFlyVersionOnceAndRejectsWrongIdentityVersionOSOrArchitecture() async throws {
+@Test func validatesFlyVersionRangeOnceAndRejectsWrongIdentityVersionOSOrArchitecture() async throws {
   let runner = FixtureFlyRunner(fixtures: standardFlyFixtures())
   let client = makeFlyClient(runner: runner)
   _ = try await client.fetchSnapshot()
@@ -66,7 +66,7 @@ import Testing
   }
 
   let malformed = makeFlyClient(runner: FixtureFlyRunner(fixtures: ["version --json": "not-json"]))
-  await #expect(throws: FlyCLIError.malformedOutput("Could not parse the Fly runtime version.")) {
+  await #expect(throws: FlyCLIError.malformedOutput("Could not parse the flyctl version.")) {
     try await malformed.fetchSnapshot()
   }
 }

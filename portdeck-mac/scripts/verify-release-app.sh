@@ -17,6 +17,8 @@ runtime_root="$app_bundle/Contents/Resources/PortDeckRuntime"
 bundled_node="$runtime_root/bin/node"
 bundled_cli="$runtime_root/portdeck-cli.js"
 licenses_root="$app_bundle/Contents/Resources/Licenses"
+maximum_app_size_kib=112640
+maximum_file_count=9
 
 fail() {
   echo "Release candidate verification failed: $*" >&2
@@ -64,8 +66,15 @@ if /usr/bin/find "$app_bundle" -type l -print -quit | /usr/bin/grep -q .; then
   fail "the release candidate contains a symlink"
 fi
 if [[ -e "$app_bundle/Contents/Resources/ProviderRuntimes" ]]; then
-  fail "managed provider runtimes must not be bundled in this release candidate"
+  fail "provider CLIs must not be bundled in this release candidate"
 fi
+
+app_size_kib="$(/usr/bin/du -sk "$app_bundle" | /usr/bin/awk '{print $1}')"
+[[ "$app_size_kib" -le "$maximum_app_size_kib" ]] \
+  || fail "bundle is ${app_size_kib} KiB; maximum is ${maximum_app_size_kib} KiB"
+file_count="$(/usr/bin/find "$app_bundle" -type f | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
+[[ "$file_count" -le "$maximum_file_count" ]] \
+  || fail "bundle contains ${file_count} files; maximum is ${maximum_file_count}"
 
 expected_files="$(/usr/bin/printf '%s\n' \
   'Contents/Info.plist' \
@@ -120,7 +129,7 @@ gatekeeper_output="$(/bin/cat "$gatekeeper_output_file")"
 
 swift test \
   --package-path "$package_root" \
-  --filter 'RuntimeResolver|Vercel|degradesManagedRuntimeFailuresWithoutLosingProductionMetadata|ModelMapsSetupFailures|reportsCloudflareSetupStates|reportsFreshSupabaseRuntimeAuthenticationRateLimitAndFailureStates'
+  --filter 'RuntimeResolver|ExternalProviderCLIResolver|Vercel|degradesExternalCLIFailuresWithoutLosingProductionMetadata|ModelMapsSetupFailures|reportsCloudflareSetupStates|reportsFreshSupabaseRuntimeAuthenticationRateLimitAndFailureStates'
 
 verification_root="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/portdeck-release-verify.XXXXXX")"
 copied_app="$verification_root/PortDeck.app"
@@ -275,4 +284,5 @@ echo "Main executable architecture: $(/usr/bin/lipo -archs "$main_executable")"
 echo "Node architecture: $(/usr/bin/lipo -archs "$bundled_node")"
 echo "Signing: ad-hoc hardened runtime, App Sandbox disabled"
 echo "Gatekeeper rejection (expected until Developer ID signing and notarization): $gatekeeper_output"
-echo "Managed provider runtimes: intentionally absent; unavailable/degraded source tests passed"
+echo "Provider CLIs: external-only; missing/unsupported setup tests passed"
+echo "Size: ${app_size_kib} KiB across ${file_count} files"

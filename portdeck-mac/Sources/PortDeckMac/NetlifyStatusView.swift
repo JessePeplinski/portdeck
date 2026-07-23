@@ -28,23 +28,23 @@ struct NetlifyStatusView: View {
         title: "No Netlify projects",
         detail: "The current Netlify account does not have access to any projects."
       )
-    case .missingRuntime:
-      setupState(
+    case .missingCLI:
+      ProviderCLISetupView(
         systemImage: "terminal",
-        title: "Netlify runtime unavailable",
-        detail: "PortDeck could not find its pinned Netlify CLI runtime. Source builds resolve only the root netlify-cli dependency.",
-        actionTitle: "Try again",
-        actionSystemImage: "arrow.clockwise",
-        action: onRefresh
+        title: "Netlify CLI required",
+        detail: "Install a supported Netlify CLI. PortDeck reuses its local session and never installs or upgrades it automatically.",
+        installCommand: NetlifyRuntimeResolver.installCommand,
+        documentationURL: NetlifyRuntimeResolver.documentationURL,
+        onRefresh: onRefresh
       )
-    case .incompatibleRuntime(let currentVersion):
-      setupState(
+    case .unsupportedCLI(let currentVersion):
+      ProviderCLISetupView(
         systemImage: "exclamationmark.triangle",
-        title: "Netlify runtime incompatible",
-        detail: "PortDeck found \(currentVersion), but this build requires netlify-cli \(NetlifyCLIClient.pinnedVersion) and Node \(NetlifyCLIClient.minimumNodeVersion) or newer.",
-        actionTitle: "Try again",
-        actionSystemImage: "arrow.clockwise",
-        action: onRefresh
+        title: "Update Netlify CLI",
+        detail: "PortDeck found \(currentVersion). It supports netlify-cli \(NetlifyCLIClient.supportedVersionRange.displayName) on Node \(NetlifyCLIClient.minimumNodeVersion) or newer.",
+        installCommand: NetlifyRuntimeResolver.installCommand,
+        documentationURL: NetlifyRuntimeResolver.documentationURL,
+        onRefresh: onRefresh
       )
     case .authenticationRequired:
       setupState(

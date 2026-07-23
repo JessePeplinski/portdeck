@@ -70,6 +70,10 @@ public struct SystemConvexCommandRunner: ConvexCommandRunning {
     let process = Process()
     process.executableURL = executableURL
     process.arguments = arguments
+    process.environment = ProviderCLIExecutionEnvironment.make(
+      executableURL: executableURL,
+      base: ProcessInfo.processInfo.environment
+    )
     process.currentDirectoryURL = currentDirectoryURL
     process.standardOutput = stdoutHandle
     process.standardError = stderrHandle
@@ -95,7 +99,7 @@ public struct SystemConvexCommandRunner: ConvexCommandRunning {
 }
 
 public actor ConvexCLIClient: ConvexCLIClientProtocol {
-  public static let pinnedVersion = ConvexRuntimeResolver.pinnedVersion
+  public static let supportedVersionRange = ConvexRuntimeResolver.supportedVersionRange
 
   private let runner: any ConvexCommandRunning
   private let runtimeResolver: any ConvexRuntimeResolving
@@ -163,13 +167,15 @@ public actor ConvexCLIClient: ConvexCLIClientProtocol {
     guard versionResult.terminationStatus == 0 else {
       throw classifiedFailure(from: versionResult)
     }
-    guard let version = SemanticVersion.first(in: versionResult.stdoutString),
-      let pinned = SemanticVersion(string: Self.pinnedVersion)
-    else {
-      throw ConvexCLIError.invalidResponse("Could not read the PortDeck-managed Convex CLI version.")
+    let output = versionResult.stdoutString.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !output.isEmpty else {
+      throw ConvexCLIError.invalidResponse("Could not read the installed Convex CLI version.")
     }
-    guard version == pinned else {
-      throw ConvexCLIError.incompatibleRuntime(currentVersion: version.description)
+    guard let version = ProviderCLIVersion.first(in: output) else {
+      throw ConvexCLIError.unsupportedCLI(currentVersion: String(output.prefix(80)))
+    }
+    guard Self.supportedVersionRange.contains(version) else {
+      throw ConvexCLIError.unsupportedCLI(currentVersion: version.description)
     }
     cachedExecutableURL = executableURL
     return executableURL
@@ -222,8 +228,8 @@ public actor ConvexCLIClient: ConvexCLIClientProtocol {
 }
 
 public enum ConvexCLIError: LocalizedError, Equatable, Sendable {
-  case missingRuntime
-  case incompatibleRuntime(currentVersion: String)
+  case missingCLI
+  case unsupportedCLI(currentVersion: String)
   case unauthenticated
   case unconfigured
   case commandFailed(String)
@@ -231,10 +237,10 @@ public enum ConvexCLIError: LocalizedError, Equatable, Sendable {
 
   public var errorDescription: String? {
     switch self {
-    case .missingRuntime:
-      return "PortDeck's managed Convex health runtime is unavailable."
-    case .incompatibleRuntime(let currentVersion):
-      return "PortDeck found Convex CLI \(currentVersion), but this build requires exactly \(ConvexCLIClient.pinnedVersion)."
+    case .missingCLI:
+      return "Convex CLI is not installed."
+    case .unsupportedCLI(let currentVersion):
+      return "PortDeck found Convex CLI \(currentVersion), but supports \(ConvexCLIClient.supportedVersionRange.displayName)."
     case .unauthenticated:
       return "Sign in with Convex CLI to read production health."
     case .unconfigured:
@@ -250,42 +256,4 @@ public enum ConvexCLIError: LocalizedError, Equatable, Sendable {
 private extension ConvexCommandResult {
   var stdoutString: String { String(data: stdout, encoding: .utf8) ?? "" }
   var stderrString: String { String(data: stderr, encoding: .utf8) ?? "" }
-}
-
-private struct SemanticVersion: Comparable, CustomStringConvertible {
-  let major: Int
-  let minor: Int
-  let patch: Int
-
-  init?(string: String) {
-    let parts = string.split(separator: ".")
-    guard parts.count == 3,
-      let major = Int(parts[0]),
-      let minor = Int(parts[1]),
-      let patch = Int(parts[2])
-    else {
-      return nil
-    }
-    self.major = major
-    self.minor = minor
-    self.patch = patch
-  }
-
-  var description: String { "\(major).\(minor).\(patch)" }
-
-  static func < (left: SemanticVersion, right: SemanticVersion) -> Bool {
-    if left.major != right.major { return left.major < right.major }
-    if left.minor != right.minor { return left.minor < right.minor }
-    return left.patch < right.patch
-  }
-
-  static func first(in value: String) -> SemanticVersion? {
-    guard let expression = try? NSRegularExpression(pattern: #"(\d+)\.(\d+)\.(\d+)"#),
-      let match = expression.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)),
-      let range = Range(match.range, in: value)
-    else {
-      return nil
-    }
-    return SemanticVersion(string: String(value[range]))
-  }
 }

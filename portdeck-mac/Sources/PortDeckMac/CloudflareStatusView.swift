@@ -30,23 +30,23 @@ struct CloudflareStatusView: View {
           ? "No Pages projects were returned and no active local Wrangler configuration was found."
           : "No Pages projects or Worker deployments were returned for the current Wrangler accounts."
       )
-    case .missingRuntime:
-      setupState(
+    case .missingCLI:
+      ProviderCLISetupView(
         systemImage: "terminal",
-        title: "Wrangler runtime unavailable",
-        detail: "PortDeck could not find its managed Wrangler runtime. Reinstall dependencies or rebuild PortDeck.",
-        actionTitle: "Try again",
-        actionSystemImage: "arrow.clockwise",
-        action: onRefresh
+        title: "Wrangler required",
+        detail: "Install a supported Wrangler CLI. PortDeck reuses its local session and never installs or upgrades it automatically.",
+        installCommand: CloudflareRuntimeResolver.installCommand,
+        documentationURL: CloudflareRuntimeResolver.documentationURL,
+        onRefresh: onRefresh
       )
-    case .incompatibleRuntime(let currentVersion):
-      setupState(
+    case .unsupportedCLI(let currentVersion):
+      ProviderCLISetupView(
         systemImage: "exclamationmark.triangle",
-        title: "Wrangler runtime incompatible",
-        detail: "PortDeck found Wrangler \(currentVersion), but this build requires exactly \(CloudflareCLIClient.pinnedVersion).",
-        actionTitle: "Try again",
-        actionSystemImage: "arrow.clockwise",
-        action: onRefresh
+        title: "Update Wrangler",
+        detail: "Version \(currentVersion) is installed. PortDeck supports \(CloudflareCLIClient.supportedVersionRange.displayName).",
+        installCommand: CloudflareRuntimeResolver.installCommand,
+        documentationURL: CloudflareRuntimeResolver.documentationURL,
+        onRefresh: onRefresh
       )
     case .authenticationRequired:
       setupState(

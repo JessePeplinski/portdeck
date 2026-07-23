@@ -114,7 +114,10 @@ public struct SystemNetlifyCommandRunner: NetlifyCommandRunning {
     let process = Process()
     process.executableURL = executableURL
     process.arguments = arguments
-    process.environment = environment
+    process.environment = ProviderCLIExecutionEnvironment.make(
+      executableURL: executableURL,
+      base: environment
+    )
     process.currentDirectoryURL = currentDirectoryURL
     process.standardOutput = stdoutHandle
     process.standardError = stderrHandle
@@ -156,7 +159,7 @@ public struct SystemNetlifyCommandRunner: NetlifyCommandRunning {
 }
 
 public actor NetlifyCLIClient: NetlifyCLIClientProtocol {
-  public static let pinnedVersion = NetlifyRuntimeResolver.pinnedVersion
+  public static let supportedVersionRange = NetlifyRuntimeResolver.supportedVersionRange
   public static let minimumNodeVersion = NetlifyRuntimeResolver.minimumNodeVersion
   public static let loginCommand = "netlify login"
   public static let maximumConcurrentScopedCommands = 4
@@ -314,7 +317,7 @@ public actor NetlifyCLIClient: NetlifyCLIClientProtocol {
       let archRange = Range(match.range(at: 3), in: rawVersion),
       let nodeRange = Range(match.range(at: 4), in: rawVersion)
     else {
-      throw NetlifyCLIError.incompatibleRuntime(currentVersion: String(rawVersion.prefix(120)))
+      throw NetlifyCLIError.unsupportedCLI(currentVersion: String(rawVersion.prefix(120)))
     }
     let evidence = NetlifyRuntimeEvidence(
       cliVersion: String(rawVersion[cliRange]),
@@ -322,10 +325,11 @@ public actor NetlifyCLIClient: NetlifyCLIClientProtocol {
       architecture: String(rawVersion[archRange]),
       nodeVersion: String(rawVersion[nodeRange])
     )
-    guard evidence.cliVersion == Self.pinnedVersion,
+    guard let version = ProviderCLIVersion(string: evidence.cliVersion),
+      Self.supportedVersionRange.contains(version),
       isVersion(evidence.nodeVersion, atLeast: Self.minimumNodeVersion)
     else {
-      throw NetlifyCLIError.incompatibleRuntime(currentVersion: String(rawVersion.prefix(120)))
+      throw NetlifyCLIError.unsupportedCLI(currentVersion: String(rawVersion.prefix(120)))
     }
     return evidence
   }
@@ -489,8 +493,8 @@ public actor NetlifyCLIClient: NetlifyCLIClientProtocol {
 }
 
 public enum NetlifyCLIError: LocalizedError, Equatable, Sendable {
-  case missingRuntime
-  case incompatibleRuntime(currentVersion: String)
+  case missingCLI
+  case unsupportedCLI(currentVersion: String)
   case authenticationRequired
   case rateLimited
   case malformedOutput(String)
@@ -503,10 +507,10 @@ public enum NetlifyCLIError: LocalizedError, Equatable, Sendable {
 
   public var errorDescription: String? {
     switch self {
-    case .missingRuntime:
-      return "PortDeck's managed Netlify runtime is unavailable."
-    case .incompatibleRuntime(let currentVersion):
-      return "PortDeck found \(currentVersion), but this build requires netlify-cli \(NetlifyCLIClient.pinnedVersion) on Node \(NetlifyCLIClient.minimumNodeVersion) or newer."
+    case .missingCLI:
+      return "Netlify CLI is not installed."
+    case .unsupportedCLI(let currentVersion):
+      return "PortDeck found \(currentVersion), but supports netlify-cli \(NetlifyCLIClient.supportedVersionRange.displayName) on Node \(NetlifyCLIClient.minimumNodeVersion) or newer."
     case .authenticationRequired:
       return "Netlify authentication required. Run `\(NetlifyCLIClient.loginCommand)` in Terminal."
     case .rateLimited:

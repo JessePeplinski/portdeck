@@ -22,6 +22,8 @@ public enum ConvexHealthState: String, Equatable, Sendable {
 
 public enum ConvexProjectAvailability: Equatable, Sendable {
   case ready
+  case missingCLI
+  case unsupportedCLI
   case unauthenticated
   case unconfigured
   case unavailable

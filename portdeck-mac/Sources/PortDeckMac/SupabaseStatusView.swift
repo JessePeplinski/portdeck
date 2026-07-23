@@ -28,23 +28,23 @@ struct SupabaseStatusView: View {
         title: "No accessible Supabase projects",
         detail: "The current Supabase CLI account does not have access to any projects."
       )
-    case .missingRuntime:
-      setupState(
+    case .missingCLI:
+      ProviderCLISetupView(
         systemImage: "terminal",
-        title: "Supabase runtime unavailable",
-        detail: "PortDeck could not find its managed Supabase CLI runtime. Reinstall dependencies or rebuild PortDeck.",
-        actionTitle: "Try again",
-        actionSystemImage: "arrow.clockwise",
-        action: onRefresh
+        title: "Supabase CLI required",
+        detail: "Install a supported Supabase CLI. PortDeck reuses its local session and never installs or upgrades it automatically.",
+        installCommand: SupabaseRuntimeResolver.installCommand,
+        documentationURL: SupabaseRuntimeResolver.documentationURL,
+        onRefresh: onRefresh
       )
-    case .incompatibleRuntime(let currentVersion):
-      setupState(
+    case .unsupportedCLI(let currentVersion):
+      ProviderCLISetupView(
         systemImage: "exclamationmark.triangle",
-        title: "Supabase runtime incompatible",
-        detail: "PortDeck found Supabase CLI \(currentVersion), but this build requires exactly \(SupabaseCLIClient.pinnedVersion).",
-        actionTitle: "Try again",
-        actionSystemImage: "arrow.clockwise",
-        action: onRefresh
+        title: "Update Supabase CLI",
+        detail: "Version \(currentVersion) is installed. PortDeck supports \(SupabaseCLIClient.supportedVersionRange.displayName).",
+        installCommand: SupabaseRuntimeResolver.installCommand,
+        documentationURL: SupabaseRuntimeResolver.documentationURL,
+        onRefresh: onRefresh
       )
     case .authenticationRequired:
       setupState(
