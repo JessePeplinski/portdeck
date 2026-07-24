@@ -199,8 +199,10 @@ struct StatusView: View {
 
   private var header: some View {
     HStack(spacing: 10) {
-      Image(systemName: "rectangle.stack")
-        .font(.title3)
+      PortDeckMarkShape()
+        .fill(.primary, style: FillStyle(eoFill: true))
+        .frame(width: 28, height: 12)
+        .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         Text("PortDeck")
           .font(.headline)

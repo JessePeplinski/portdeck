@@ -4,10 +4,10 @@ PortDeck's first public distribution target is a Developer ID-signed and notariz
 
 ## Current target
 
-The current public beta is `v0.1.0-beta.3` for Apple Silicon Macs running macOS 14 or newer:
+The current public beta is `v0.1.0-beta.4` for Apple Silicon Macs running macOS 14 or newer:
 
-- [`PortDeck-0.1.0-beta.3-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.3/PortDeck-0.1.0-beta.3-macos-arm64.zip)
-- [`PortDeck-0.1.0-beta.3-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.3/PortDeck-0.1.0-beta.3-macos-arm64.zip.sha256)
+- [`PortDeck-0.1.0-beta.4-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.4/PortDeck-0.1.0-beta.4-macos-arm64.zip)
+- [`PortDeck-0.1.0-beta.4-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.4/PortDeck-0.1.0-beta.4-macos-arm64.zip.sha256)
 
 A DMG, universal/x86_64 build, in-app updater, and App Store package are outside the current beta contract.
 

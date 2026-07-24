@@ -37,7 +37,11 @@ struct PortDeckMacApp: App {
       )
         .frame(width: 500, height: menuWindowHeight)
     } label: {
-      Label("PortDeck", systemImage: model.menuIconName)
+      Label {
+        Text("PortDeck")
+      } icon: {
+        Image(nsImage: PortDeckMenuBarIcon.image)
+      }
     }
     .menuBarExtraStyle(.window)
   }

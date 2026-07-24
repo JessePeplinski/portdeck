@@ -3,7 +3,7 @@
 PortDeck is a native macOS menu-bar command center for local development services, saved projects, and read-only deployment-provider health.
 
 > [!IMPORTANT]
-> PortDeck is in pre-release development. `v0.1.0-beta.3` is the current signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production ZIP artifacts remain separate workflows.
+> PortDeck is in pre-release development. `v0.1.0-beta.4` is the current signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production ZIP artifacts remain separate workflows.
 
 ## What PortDeck does
 
@@ -25,14 +25,14 @@ open -a PortDeck
 
 Homebrew installs the same signed and notarized app published on GitHub. The versioned release paths remain available for manual installation:
 
-- [`PortDeck-0.1.0-beta.3-macos-arm64.zip`](../../releases/download/v0.1.0-beta.3/PortDeck-0.1.0-beta.3-macos-arm64.zip)
-- [`PortDeck-0.1.0-beta.3-macos-arm64.zip.sha256`](../../releases/download/v0.1.0-beta.3/PortDeck-0.1.0-beta.3-macos-arm64.zip.sha256)
+- [`PortDeck-0.1.0-beta.4-macos-arm64.zip`](../../releases/download/v0.1.0-beta.4/PortDeck-0.1.0-beta.4-macos-arm64.zip)
+- [`PortDeck-0.1.0-beta.4-macos-arm64.zip.sha256`](../../releases/download/v0.1.0-beta.4/PortDeck-0.1.0-beta.4-macos-arm64.zip.sha256)
 
 Download both files into the same directory, then verify and extract them:
 
 ```bash
-shasum -a 256 -c PortDeck-0.1.0-beta.3-macos-arm64.zip.sha256
-ditto -x -k PortDeck-0.1.0-beta.3-macos-arm64.zip .
+shasum -a 256 -c PortDeck-0.1.0-beta.4-macos-arm64.zip.sha256
+ditto -x -k PortDeck-0.1.0-beta.4-macos-arm64.zip .
 open PortDeck.app
 ```
 

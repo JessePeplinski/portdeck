@@ -13,6 +13,7 @@ rm -rf "$app_bundle"
 mkdir -p "$app_bundle/Contents/MacOS" "$app_bundle/Contents/Resources"
 cp "$executable" "$app_bundle/Contents/MacOS/PortDeckMac"
 cp "$info_plist" "$app_bundle/Contents/Info.plist"
+cp "Resources/PortDeck.icns" "$app_bundle/Contents/Resources/PortDeck.icns"
 touch "$app_bundle/Contents/Resources/.portdeck-source-development"
 
 pkill -x PortDeckMac 2>/dev/null || true

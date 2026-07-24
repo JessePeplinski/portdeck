@@ -47,10 +47,6 @@ final class StatusModel: ObservableObject {
     showLikelySystemListeners = userDefaults.bool(forKey: Self.showLikelySystemListenersKey)
   }
 
-  var menuIconName: String {
-    return "rectangle.stack"
-  }
-
   var showsHeaderProgress: Bool {
     PortdeckHeaderProgressState(isRefreshing: isRefreshing, isStopping: isStopping || isManagingSavedProject).showsProgress
   }
