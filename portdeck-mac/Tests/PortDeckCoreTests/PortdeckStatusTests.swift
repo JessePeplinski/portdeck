@@ -2,47 +2,10 @@ import Foundation
 import Testing
 @testable import PortDeckCore
 
-@Test func decodesStoppedSavedProjectWithoutFakeServiceRows() throws {
-  let json = """
-  {
-    "schemaVersion": "0.1",
-    "generatedAt": "2026-07-17T12:00:00.000Z",
-    "groups": [
-      {
-        "projectName": "portdeck",
-        "repoRoot": "/repo/portdeck",
-        "worktrees": [],
-        "savedProject": {
-          "id": "saved-portdeck",
-          "state": "stopped",
-          "port": 3000,
-          "supportsPortSwitching": true,
-          "logPath": null,
-          "lastError": null,
-          "previousPort": null
-        }
-      }
-    ],
-    "unknown": [],
-    "warnings": []
-  }
-  """.data(using: .utf8)!
-
-  let status = try JSONDecoder().decode(PortdeckStatus.self, from: json)
-  let group = try #require(status.groups.first)
-  let saved = try #require(group.savedProject)
-
-  #expect(group.worktrees.isEmpty)
-  #expect(saved.id == "saved-portdeck")
-  #expect(saved.state == "stopped")
-  #expect(saved.port == 3000)
-  #expect(saved.supportsPortSwitching)
-}
-
 @Test func decodesStatusJsonWithProcessAndDockerServices() throws {
   let json = """
   {
-    "schemaVersion": "0.1",
+    "schemaVersion": "0.2",
     "generatedAt": "2026-06-08T12:00:00.000Z",
     "groups": [
       {
@@ -98,7 +61,7 @@ import Testing
 
   let status = try JSONDecoder().decode(PortdeckStatus.self, from: json)
 
-  #expect(status.schemaVersion == "0.1")
+  #expect(status.schemaVersion == "0.2")
   #expect(status.groups.count == 1)
   #expect(status.groups[0].worktrees[0].services.map(\.name) == ["web", "db"])
   #expect(status.groups[0].worktrees[0].services[0].subcontext == nil)
@@ -108,7 +71,7 @@ import Testing
 @Test func decodesOptionalProjectAndWorktreeRemoteMetadata() throws {
   let json = """
   {
-    "schemaVersion": "0.1",
+    "schemaVersion": "0.2",
     "generatedAt": "2026-06-08T12:00:00.000Z",
     "groups": [
       {
@@ -150,7 +113,7 @@ import Testing
 @Test func decodesOptionalServiceSubcontext() throws {
   let json = """
   {
-    "schemaVersion": "0.1",
+    "schemaVersion": "0.2",
     "generatedAt": "2026-06-08T12:00:00.000Z",
     "groups": [
       {
@@ -204,7 +167,7 @@ import Testing
 @Test func decodesOptionalDockerGroupingReason() throws {
   let json = """
   {
-    "schemaVersion": "0.1",
+    "schemaVersion": "0.2",
     "generatedAt": "2026-06-08T12:00:00.000Z",
     "groups": [],
     "unknown": [
@@ -239,7 +202,7 @@ import Testing
 @Test func decodesOptionalServiceActivityAndFormatsProcessMetrics() throws {
   let json = """
   {
-    "schemaVersion": "0.1",
+    "schemaVersion": "0.2",
     "generatedAt": "2026-06-08T12:00:00.000Z",
     "groups": [
       {
@@ -320,7 +283,7 @@ import Testing
 @Test func decodesListenerAndCollisionMetadata() throws {
   let json = """
   {
-    "schemaVersion": "0.1",
+    "schemaVersion": "0.2",
     "generatedAt": "2026-06-08T12:00:00.000Z",
     "groups": [
       {
@@ -397,7 +360,7 @@ import Testing
 @Test func formatsBracketedIPv6EndpointLabels() throws {
   let json = """
   {
-    "schemaVersion": "0.1",
+    "schemaVersion": "0.2",
     "generatedAt": "2026-06-08T12:00:00.000Z",
     "groups": [
       {
@@ -453,7 +416,7 @@ import Testing
 @Test func decodesEndpointHealthAndPortConflictMetadata() throws {
   let json = """
   {
-    "schemaVersion": "0.1",
+    "schemaVersion": "0.2",
     "generatedAt": "2026-06-08T12:00:00.000Z",
     "groups": [
       {
@@ -559,7 +522,7 @@ import Testing
 @Test func decodesNgrokExposuresAndFormatsDisplayText() throws {
   let json = """
   {
-    "schemaVersion": "0.1",
+    "schemaVersion": "0.2",
     "generatedAt": "2026-06-08T12:00:00.000Z",
     "groups": [
       {

@@ -69,7 +69,7 @@ private func candidateStatus(
     """
   }.joined(separator: ",")
   let json = """
-  {"schemaVersion":"0.1","generatedAt":"2026-07-16T12:00:00Z","groups":[{"projectName":\(jsonString(projectName)),"repoRoot":\(jsonString(root.path)),"worktrees":[{"name":"main","path":\(jsonString(root.path)),"branch":"main","services":[\(services)]}]}],"unknown":[],"warnings":[]}
+  {"schemaVersion":"0.2","generatedAt":"2026-07-16T12:00:00Z","groups":[{"projectName":\(jsonString(projectName)),"repoRoot":\(jsonString(root.path)),"worktrees":[{"name":"main","path":\(jsonString(root.path)),"branch":"main","services":[\(services)]}]}],"unknown":[],"warnings":[]}
   """
   return try JSONDecoder().decode(PortdeckStatus.self, from: Data(json.utf8))
 }

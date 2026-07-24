@@ -4,7 +4,7 @@
 
 ## Current Contract
 
-The current schema version is `"0.1"`.
+The current schema version is `"0.2"`. Version `0.2` removes the optional saved-project metadata and project-launch command surface from `0.1`.
 
 Top-level fields:
 
@@ -23,17 +23,6 @@ Project groups:
 - `remoteUrl`: raw `origin` Git remote URL when PortDeck can normalize it to a supported repository URL and it contains no URL userinfo. Credential-bearing remotes omit this field.
 - `repositoryUrl`: browser URL for the Git repository when PortDeck can safely infer one. Currently this is GitHub-only.
 - `worktrees`: groups of services under a Git worktree or Docker-only grouping.
-- `savedProject`: optional saved-project header metadata. Saved projects stay in `groups` while stopped and may have no worktrees or service rows.
-
-Saved project metadata:
-
-- `id`: stable private profile identifier.
-- `state`: `stopped`, `starting`, `running`, `external`, or `failed`. `external` means discovery found services under the saved folder without a live PortDeck ownership record.
-- `port`: optional confirmed primary port.
-- `supportsPortSwitching`: whether the confirmed command contains the `{port}` placeholder.
-- `logPath`: bounded current-run log path when available.
-- `lastError`: bounded launch failure detail when the last PortDeck-owned run failed.
-- `previousPort`: last saved port after an attempted port change failed. The profile's own `port` remains unchanged until a new process binds successfully.
 
 Worktree groups:
 
@@ -48,7 +37,7 @@ Services:
 
 - `id`: stable-enough snapshot identifier for the detected service.
 - `name`: display name inferred from command, process, Docker service, or container.
-- `source`: discovery source such as `process`, `docker`, `registered`, or `portdeck-run`.
+- `source`: discovery source such as `process`, `docker`, or `registered`.
 - `status`: service state such as `running`, `stale`, `stopped`, or `unknown`.
 - `port`, `url`, `address`, and `protocol`: network details when known. `url` remains the preferred URL for opening the service. It uses the preferred concrete listener host/IP when discovery finds one, and falls back to `localhost` for wildcard binds such as `*`, `0.0.0.0`, or `::`.
 - `listeners`: optional endpoint list for the service. Each listener preserves the discovered bind address and generated URL.
@@ -68,18 +57,6 @@ Service actions:
 - The stop action refreshes status before acting, so missing or stale identifiers fail cleanly.
 - Process services require `pid`; Docker services require `containerId`.
 - Unsupported or insufficient identity returns quiet structured JSON rather than raw process or Docker errors.
-
-Saved project commands:
-
-- `portdeck projects list --json` reads the private, versioned profile file.
-- `portdeck projects suggest --path <path> [--service-id <id> ...] --json` inspects manifests, lockfiles, Compose files, workspaces, and likely executable repository scripts without changing or running anything. When the app supplies selected running-service IDs, the helper may also return a normalized allowlisted command from those processes. Raw process commands, session flags, and credentials are never copied into a suggestion.
-- `portdeck projects save --input <project-json> --json` validates and atomically persists one confirmed name, canonical folder, command template, and optional port.
-- `portdeck projects remove --project-id <id> --json` removes a stopped profile.
-- `portdeck run start --project-id <id> [--port <port>] --json` starts the confirmed command.
-- `portdeck run stop --project-id <id> --json` sends `SIGTERM` to only that PortDeck-owned process group.
-- `portdeck run restart --project-id <id> --port <port> --json` checks the target port, gracefully stops the current owned group, and starts on the confirmed port.
-
-Project configuration lives at `~/.portdeck/projects.json` with schema version `"1"`, a private `0700` parent directory, `0600` files, and atomic replacement. Ownership state and bounded logs live beside it but are not user-facing configuration. A malformed profile file is preserved and returned as a warning; PortDeck does not silently reset it.
 
 Service listeners:
 
@@ -216,7 +193,7 @@ Docker attribution:
 
 Git repository metadata:
 
-- `remoteUrl` and `repositoryUrl` are optional and additive under schema `"0.1"`.
+- `remoteUrl` and `repositoryUrl` were introduced as optional additive fields in schema `"0.1"` and remain available in `"0.2"`.
 - PortDeck reads `git remote get-url origin` quietly for Git-owned worktrees.
 - Supported GitHub origin forms include `https://github.com/<owner>/<repo>.git`, `git@github.com:<owner>/<repo>.git`, and `ssh://git@github.com/<owner>/<repo>.git`.
 - `repositoryUrl` normalizes supported origins to `https://github.com/<owner>/<repo>` and removes a trailing `.git`.
@@ -224,7 +201,7 @@ Git repository metadata:
 
 ## Compatibility Rules
 
-- Additive fields are allowed in schema version `"0.1"` when existing consumers can ignore them.
+- Additive fields are allowed in schema version `"0.2"` when existing consumers can ignore them.
 - Optional fields may be omitted when discovery cannot safely or reliably find them.
 - Field removals, renames, type changes, or semantic changes require a schema version bump.
 - Consumers should tolerate unknown fields and should not require optional fields to exist.

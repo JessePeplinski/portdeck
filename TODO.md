@@ -5,7 +5,6 @@
 - [x] Read-only Cloudflare provider: account-wide Pages deployments plus repo-linked Worker deployment state through pinned Wrangler without exporting credentials or reading application resources.
 - [x] Read-only Railway provider: account-wide project/workspace and production service/deployment status through pinned Railway CLI with explicit scopes and no context mutation.
 - [x] Read-only Fly.io provider: account-wide organization, app, Machine, check, and release status through pinned flyctl with explicit app scopes and no resource mutation.
-- [x] Minimal saved projects: a first-class Projects tab, one confirmed project command, optional `{port}`, private profiles, graceful owned-process lifecycle, stopped-project visibility, visible Local-to-Projects saving, and Command-K actions.
 
 ## MVP provider sequence
 
@@ -23,5 +22,3 @@ Once these six providers are complete, stop expanding provider coverage for the 
 - [ ] Unified Problems overview across local services and every provider.
 - [ ] Local-versus-deployed project matching and health comparison.
 - [ ] Notifications for meaningful state transitions, not repeated polling failures.
-- [ ] Extend saved project profiles to explicit provider mappings only after local usage proves the matching need.
-- [ ] Bundle and sign the local helper/runtime, then verify the notarized GitHub ZIP from a clean macOS user account before calling saved-project launching download-ready.

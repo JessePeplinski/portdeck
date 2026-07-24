@@ -23,7 +23,7 @@ import Testing
 
 @Test func resolvesAndDeduplicatesActiveGitHubRepositoriesWithProjectNames() {
   let status = PortdeckStatus(
-    schemaVersion: "0.1",
+    schemaVersion: "0.2",
     generatedAt: "2026-07-16T12:00:00Z",
     groups: [
       ProjectGroup(

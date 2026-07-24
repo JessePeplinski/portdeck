@@ -120,7 +120,7 @@ describe("stopServiceById", () => {
 
 function makeStatus(services: PortdeckService[]): PortdeckStatus {
   return {
-    schemaVersion: "0.1",
+    schemaVersion: "0.2",
     generatedAt: "2026-06-09T00:00:00.000Z",
     groups: [
       {

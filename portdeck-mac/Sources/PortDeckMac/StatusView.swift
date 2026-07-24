@@ -33,7 +33,6 @@ struct StatusView: View {
   @ObservedObject var netlifyModel: NetlifyStatusModel
   @ObservedObject var providerConfiguration: ProviderConfigurationModel
   @AppStorage("PortDeck.selectedDashboardTab") private var selectedDashboardTab = PortdeckDashboardSource.local.rawValue
-  @State private var projectSearchText = ""
   @State private var localSearchText = ""
   @State private var vercelSearchText = ""
   @State private var convexSearchText = ""
@@ -51,11 +50,6 @@ struct StatusView: View {
   @State private var pendingStopAction: PendingStopAction?
   @State private var isCommandPalettePresented = false
   @State private var isProviderCustomizationPresented = false
-  @State private var isAddProjectPickerPresented = false
-  @State private var savedProjectEditor: SavedProjectEditorSeed?
-  @State private var savedProjectPortRequest: ProjectGroup?
-  @State private var savedProjectRemovalRequest: ProjectGroup?
-  @State private var savedProjectTakeoverRequest: ProjectGroup?
   @State private var commandPaletteQuery = ""
   @State private var selectedCommandPaletteIndex = 0
   @FocusState private var isCommandPaletteSearchFocused: Bool
@@ -78,75 +72,6 @@ struct StatusView: View {
         ProviderCustomizationOverlay(
           model: providerConfiguration,
           onDismiss: dismissProviderCustomization
-        )
-      }
-
-#if !APP_STORE
-      if isAddProjectPickerPresented {
-        SavedProjectPickerOverlay(
-          projects: addProjectCandidates,
-          onChooseProject: { project in
-            isAddProjectPickerPresented = false
-            presentSaveProject(project)
-          },
-          onDismiss: { isAddProjectPickerPresented = false }
-        )
-      }
-#endif
-
-      if let seed = savedProjectEditor {
-        SavedProjectEditorOverlay(
-          model: model,
-          seed: seed,
-          onDismiss: { savedProjectEditor = nil },
-          onSaved: {
-            savedProjectEditor = nil
-            selectProjects()
-          }
-        )
-      }
-
-      if let project = savedProjectPortRequest, let saved = project.savedProject {
-        SavedProjectPortOverlay(
-          projectName: project.projectName,
-          currentPort: saved.port,
-          isRunning: saved.state == "running" || saved.state == "starting",
-          isWorking: model.activeSavedProjectID == saved.id,
-          onDismiss: { savedProjectPortRequest = nil },
-          onConfirm: { port in
-            savedProjectPortRequest = nil
-            if saved.state == "running" || saved.state == "starting" {
-              model.requestRestartProject(saved, port: port)
-            } else {
-              model.requestStartProject(saved, port: port)
-            }
-          }
-        )
-      }
-
-      if let project = savedProjectRemovalRequest, let saved = project.savedProject {
-        StopConfirmationOverlay(
-          title: "Remove \(project.projectName) from PortDeck?",
-          confirmButtonTitle: "Remove project",
-          isStopping: model.isManagingSavedProject,
-          onCancel: { savedProjectRemovalRequest = nil },
-          onConfirm: {
-            savedProjectRemovalRequest = nil
-            Task { _ = await model.removeProject(id: saved.id) }
-          }
-        )
-      }
-
-      if let project = savedProjectTakeoverRequest {
-        StopConfirmationOverlay(
-          title: "Restart \(project.projectName) via PortDeck?",
-          confirmButtonTitle: "Restart project",
-          isStopping: model.isManagingSavedProject,
-          onCancel: { savedProjectTakeoverRequest = nil },
-          onConfirm: {
-            savedProjectTakeoverRequest = nil
-            model.requestTakeOverProject(project)
-          }
         )
       }
 
@@ -207,7 +132,6 @@ struct StatusView: View {
     }
     .onAppear(perform: restoreDashboardSelection)
     .onChange(of: providerConfiguration.selectedProvider) { _, provider in
-      guard !isProjectsSelected else { return }
       selectedDashboardTab = provider.rawValue
     }
     .onDisappear {
@@ -285,24 +209,12 @@ struct StatusView: View {
   }
 
   private var activeSource: PortdeckDashboardSource {
-    isProjectsSelected ? .local : selectedSource
-  }
-
-  private var isProjectsSelected: Bool {
-#if APP_STORE
-    false
-#else
-    selectedDashboardTab == "projects"
-#endif
+    selectedSource
   }
 
   @ViewBuilder
   private var selectedSourceContent: some View {
-    if isProjectsSelected {
-      projectsContent
-    } else {
-      providerContent
-    }
+    providerContent
   }
 
   @ViewBuilder
@@ -378,97 +290,6 @@ struct StatusView: View {
   }
 
   @ViewBuilder
-  private var projectsContent: some View {
-#if !APP_STORE
-    if let status = model.status {
-      HStack(spacing: 8) {
-        searchField(placeholder: "Search saved projects...", text: $projectSearchText)
-        Button {
-          isAddProjectPickerPresented = true
-        } label: {
-          Label("Add Running Project", systemImage: "plus")
-            .font(.caption.weight(.semibold))
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
-        .help("Save a project PortDeck already sees running")
-      }
-
-      if let message = model.projectConfigurationError {
-        SavedProjectActionMessage(message: message, result: nil, onDismiss: model.clearProjectActionMessage)
-      } else if let result = model.projectActionResult, !result.ok {
-        SavedProjectActionMessage(
-          message: result.message,
-          result: result,
-          onUseSuggestedPort: result.suggestedPort.map { port in
-            {
-              guard let group = status.groups.first(where: { $0.savedProject?.id == result.projectId }),
-                let saved = group.savedProject
-              else { return }
-              if saved.state == "running" || saved.state == "starting" {
-                model.requestRestartProject(saved, port: port)
-              } else {
-                model.requestStartProject(saved, port: port)
-              }
-            }
-          },
-          onUsePreviousPort: result.previousPort.map { port in
-            {
-              guard let saved = status.groups
-                .first(where: { $0.savedProject?.id == result.projectId })?
-                .savedProject
-              else { return }
-              model.requestStartProject(saved, port: port)
-            }
-          },
-          onDismiss: model.clearProjectActionMessage
-        )
-      }
-
-      let projects = visibleSavedProjects(for: status)
-      if projects.isEmpty {
-        SavedProjectsEmptyState(
-          isFiltering: !projectSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        )
-      } else {
-        ForEach(projects) { project in
-          SavedProjectCard(
-            project: project,
-            isWorking: model.activeSavedProjectID == project.savedProject?.id,
-            onStart: { model.requestStartProject($0) },
-            onStop: model.requestStopProject,
-            onTakeOver: { savedProjectTakeoverRequest = $0 },
-            onChangePort: { savedProjectPortRequest = $0 },
-            onRemove: { savedProjectRemovalRequest = $0 },
-            onViewLocal: selectLocal
-          )
-        }
-      }
-    } else if let error = model.errorMessage {
-      VStack(alignment: .leading, spacing: 10) {
-        Label("Projects unavailable", systemImage: "exclamationmark.triangle")
-          .font(.headline)
-        Text(error)
-          .font(.callout)
-          .foregroundStyle(.secondary)
-          .textSelection(.enabled)
-      }
-      .frame(maxWidth: .infinity, alignment: .topLeading)
-      .padding(14)
-    } else {
-      VStack(spacing: 10) {
-        ProgressView()
-        Text("Loading projects")
-          .font(.callout)
-          .foregroundStyle(.secondary)
-      }
-      .frame(maxWidth: .infinity)
-      .padding(.vertical, 34)
-    }
-#endif
-  }
-
-  @ViewBuilder
   private var localContent: some View {
     if let status = model.status {
       searchField(
@@ -508,8 +329,7 @@ struct StatusView: View {
           stoppingServiceID: model.stoppingServiceID,
           stoppingProjectID: model.stoppingProjectID,
           onStop: requestStopConfirmation,
-          onStopAll: requestStopAllConfirmation,
-          onSaveProject: presentSaveProject
+          onStopAll: requestStopAllConfirmation
         ) {
           toggleProject(project.id)
         }
@@ -565,7 +385,7 @@ struct StatusView: View {
         .keyboardShortcut("r")
         .disabled(!selectedSourceSupportsRefresh)
 
-        if !isProjectsSelected, selectedSource == .local {
+        if selectedSource == .local {
           Menu {
             Button {
               model.copyJSON()
@@ -639,11 +459,6 @@ struct StatusView: View {
   }
 
   private var subtitle: String {
-    if isProjectsSelected {
-      let count = model.status?.groups.filter { $0.savedProject != nil }.count ?? 0
-      return "\(count) saved \(plural(count, singular: "project", plural: "projects"))"
-    }
-
     switch activeSource {
     case .vercel:
       return vercelSubtitle
@@ -844,19 +659,8 @@ struct StatusView: View {
     ProviderTabRail(
       providers: providerConfiguration.visibleProviders,
       selectedProvider: selectedSource,
-      isProjectsSelected: isProjectsSelected,
-      showsProjects: showsProjectsTab,
-      onSelectProjects: selectProjects,
       onSelect: selectSource
     )
-  }
-
-  private var showsProjectsTab: Bool {
-#if APP_STORE
-    false
-#else
-    true
-#endif
   }
 
   private func searchField(placeholder: String, text: Binding<String>) -> some View {
@@ -979,24 +783,12 @@ struct StatusView: View {
       )
     }
 
-    let actions = PortdeckCommandPalette.collect(
+    return PortdeckCommandPalette.collect(
       status: status,
       preferNamedURLs: false,
       showLikelySystemListeners: model.showLikelySystemListeners,
       dashboardSources: providerConfiguration.visibleProviders
     )
-#if APP_STORE
-    return actions.filter { action in
-      switch action.kind {
-      case .startSavedProject, .stopSavedProject, .restartSavedProject, .openSavedProjectLog:
-        return false
-      default:
-        return true
-      }
-    }
-#else
-    return actions
-#endif
   }
 
   private var commandPaletteResults: [PortdeckCommandPaletteAction] {
@@ -1030,30 +822,6 @@ struct StatusView: View {
 
       return VisibleProjectGroup(group: group, worktrees: worktrees)
     }
-  }
-
-  private func visibleSavedProjects(for status: PortdeckStatus) -> [ProjectGroup] {
-    let query = projectSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    return status.groups.filter { group in
-      guard let saved = group.savedProject else { return false }
-      guard !query.isEmpty else { return true }
-      let tokens = [group.projectName, group.repoRoot, saved.state, saved.port.map(String.init)]
-        .compactMap { $0 }
-        .joined(separator: " ")
-        .lowercased()
-      return tokens.contains(query)
-    }
-  }
-
-  private var addProjectCandidates: [ProjectGroup] {
-    guard let status = model.status else { return [] }
-    return status.groups
-      .filter { group in
-        group.savedProject == nil
-          && !group.worktrees.flatMap(\.services).isEmpty
-          && (group.repoRoot != nil || group.worktrees.contains(where: { $0.path != nil }))
-      }
-      .sorted { $0.projectName.localizedCaseInsensitiveCompare($1.projectName) == .orderedAscending }
   }
 
   private func visibleUnknownSections(for status: PortdeckStatus) -> [PortdeckUnknownServiceSection] {
@@ -1109,31 +877,15 @@ struct StatusView: View {
     isProviderCustomizationPresented = true
   }
 
-  private func selectProjects() {
-#if !APP_STORE
-    selectedDashboardTab = "projects"
-#endif
-  }
-
-  private func selectLocal() {
-    selectSource(.local)
-  }
-
   private func selectSource(_ source: PortdeckDashboardSource) {
     providerConfiguration.select(source)
     selectedDashboardTab = source.rawValue
   }
 
   private func restoreDashboardSelection() {
-#if APP_STORE
     if selectedDashboardTab == "projects" {
       selectedDashboardTab = PortdeckDashboardSource.local.rawValue
     }
-#else
-    if selectedDashboardTab == "projects" {
-      return
-    }
-#endif
 
     if let source = PortdeckDashboardSource(rawValue: selectedDashboardTab),
       providerConfiguration.isVisible(source)
@@ -1142,17 +894,6 @@ struct StatusView: View {
     } else {
       selectedDashboardTab = providerConfiguration.selectedProvider.rawValue
     }
-  }
-
-  private func presentSaveProject(_ project: ProjectGroup) {
-    guard let path = project.repoRoot ?? project.worktrees.compactMap(\.path).first else { return }
-    let serviceIDs = Array(Set(project.worktrees.flatMap { $0.services.map(\.id) })).sorted()
-    model.clearProjectActionMessage()
-    savedProjectEditor = SavedProjectEditorSeed(
-      path: path,
-      suggestedName: project.projectName,
-      serviceIDs: serviceIDs
-    )
   }
 
   private func dismissProviderCustomization() {
@@ -1210,31 +951,6 @@ struct StatusView: View {
       }
       dismissCommandPalette()
       requestStopAllConfirmation(target)
-    case .startSavedProject:
-      guard let saved = action.project?.savedProject else { return }
-      dismissCommandPalette()
-      selectProjects()
-      model.requestStartProject(saved)
-    case .stopSavedProject:
-      guard let saved = action.project?.savedProject else { return }
-      dismissCommandPalette()
-      selectProjects()
-      model.requestStopProject(saved)
-    case .restartSavedProject:
-      guard let project = action.project, let saved = project.savedProject else { return }
-      dismissCommandPalette()
-      selectProjects()
-      if saved.state == "external" {
-        savedProjectTakeoverRequest = project
-      } else if saved.supportsPortSwitching {
-        savedProjectPortRequest = project
-      } else {
-        model.requestStartProject(saved)
-      }
-    case .openSavedProjectLog:
-      guard let path = action.filePath else { return }
-      dismissCommandPalette()
-      NSWorkspace.shared.open(URL(fileURLWithPath: path))
     case .refreshStatus:
       dismissCommandPalette()
       refreshSelectedSource()
@@ -1368,9 +1084,6 @@ private struct FooterAttributionLink: View {
 private struct ProviderTabRail: View {
   let providers: [PortdeckDashboardSource]
   let selectedProvider: PortdeckDashboardSource
-  let isProjectsSelected: Bool
-  let showsProjects: Bool
-  let onSelectProjects: () -> Void
   let onSelect: (PortdeckDashboardSource) -> Void
 
   @State private var scrollPosition: PortdeckDashboardSource?
@@ -1386,15 +1099,9 @@ private struct ProviderTabRail: View {
 
   private var providerButtons: some View {
     HStack(spacing: 4) {
-      if showsProjects, !providers.contains(.local) {
-        projectsButton
-      }
       ForEach(navigationProviders) { provider in
         providerButton(provider)
           .id(provider)
-        if showsProjects, provider == .local {
-          projectsButton
-        }
       }
     }
     .fixedSize(horizontal: true, vertical: false)
@@ -1475,40 +1182,15 @@ private struct ProviderTabRail: View {
       .padding(.horizontal, 8)
       .padding(.vertical, 6)
       .contentShape(RoundedRectangle(cornerRadius: 8))
-      .foregroundStyle(!isProjectsSelected && selectedProvider == provider ? provider.accentColor : .secondary)
+      .foregroundStyle(selectedProvider == provider ? provider.accentColor : .secondary)
       .background(
-        !isProjectsSelected && selectedProvider == provider ? provider.accentColor.opacity(0.16) : Color.clear,
+        selectedProvider == provider ? provider.accentColor.opacity(0.16) : Color.clear,
         in: RoundedRectangle(cornerRadius: 8)
       )
     }
     .buttonStyle(.plain)
     .accessibilityLabel(provider.title)
     .help("\(provider.helpText)\nClick and drag to scroll providers")
-  }
-
-  private var projectsButton: some View {
-    Button(action: onSelectProjects) {
-      HStack(spacing: 5) {
-        Image(systemName: "square.stack.3d.up")
-          .imageScale(.small)
-        Text("Projects")
-          .font(.caption)
-          .fontWeight(.semibold)
-          .lineLimit(1)
-          .fixedSize(horizontal: true, vertical: false)
-      }
-      .padding(.horizontal, 8)
-      .padding(.vertical, 6)
-      .contentShape(RoundedRectangle(cornerRadius: 8))
-      .foregroundStyle(isProjectsSelected ? Color.indigo : .secondary)
-      .background(
-        isProjectsSelected ? Color.indigo.opacity(0.16) : Color.clear,
-        in: RoundedRectangle(cornerRadius: 8)
-      )
-    }
-    .buttonStyle(.plain)
-    .accessibilityLabel("Projects")
-    .help("Start, stop, and switch ports for saved projects")
   }
 
   private func navigationButton(
@@ -1605,429 +1287,6 @@ private func openFolderInVSCode(_ path: String) {
   )
 }
 
-private struct SavedProjectEditorSeed: Identifiable {
-  let id = UUID()
-  let path: String
-  let suggestedName: String?
-  let serviceIDs: [String]
-}
-
-private struct SavedProjectStateBadge: View {
-  let saved: SavedProjectStatus
-
-  var body: some View {
-    Text(label)
-      .font(.caption2.weight(.semibold))
-      .foregroundStyle(tint)
-      .padding(.horizontal, 6)
-      .padding(.vertical, 3)
-      .background(tint.opacity(0.11), in: Capsule())
-  }
-
-  private var label: String {
-    switch saved.state {
-    case "starting": return "Starting"
-    case "running": return "Running"
-    case "external": return "Running outside PortDeck"
-    case "failed": return "Failed"
-    default: return "Stopped"
-    }
-  }
-
-  private var tint: Color {
-    switch saved.state {
-    case "starting": return .blue
-    case "running": return .green
-    case "external": return .orange
-    case "failed": return .red
-    default: return .secondary
-    }
-  }
-}
-
-private struct SavedProjectCard: View {
-  let project: ProjectGroup
-  let isWorking: Bool
-  let onStart: (SavedProjectStatus) -> Void
-  let onStop: (SavedProjectStatus) -> Void
-  let onTakeOver: (ProjectGroup) -> Void
-  let onChangePort: (ProjectGroup) -> Void
-  let onRemove: (ProjectGroup) -> Void
-  let onViewLocal: () -> Void
-
-  var body: some View {
-    if let saved = project.savedProject {
-      VStack(alignment: .leading, spacing: 10) {
-        HStack(alignment: .top, spacing: 9) {
-          Image(systemName: "square.stack.3d.up")
-            .font(.title3)
-            .foregroundStyle(.indigo)
-            .frame(width: 24, height: 24)
-          VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 7) {
-              Text(project.projectName)
-                .font(.headline)
-                .lineLimit(1)
-              SavedProjectStateBadge(saved: saved)
-            }
-            if let path = project.repoRoot ?? project.worktrees.compactMap(\.path).first {
-              Text(path)
-                .font(.caption2.monospaced())
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            }
-          }
-          Spacer(minLength: 0)
-          SavedProjectActionsMenu(
-            project: project,
-            isDisabled: isWorking,
-            onChangePort: onChangePort,
-            onRemove: onRemove
-          )
-        }
-
-        HStack(spacing: 6) {
-          if let port = saved.port {
-            MetadataChip(text: ":\(port)", systemImage: "number")
-          }
-          MetadataChip(
-            text: "\(serviceCount) \(plural(serviceCount, singular: "service", plural: "services"))",
-            systemImage: "server.rack"
-          )
-          Spacer(minLength: 0)
-        }
-
-        if saved.state == "failed", let error = saved.lastError {
-          Label(error, systemImage: "exclamationmark.triangle.fill")
-            .font(.caption2)
-            .foregroundStyle(.red)
-            .lineLimit(3)
-            .textSelection(.enabled)
-        }
-
-        HStack(spacing: 7) {
-          if serviceCount > 0 {
-            Button("View in Local", action: onViewLocal)
-              .buttonStyle(.bordered)
-              .controlSize(.small)
-          }
-          if let openURL {
-            Button {
-              NSWorkspace.shared.open(openURL)
-            } label: {
-              Label(openLabel, systemImage: openURL.isFileURL ? "folder" : "arrow.up.right.square")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-          }
-          Spacer(minLength: 0)
-          if isWorking {
-            ProgressView()
-              .controlSize(.small)
-              .frame(width: 80)
-          } else {
-            SavedProjectControlButton(
-              project: project,
-              saved: saved,
-              onStart: onStart,
-              onStop: onStop,
-              onTakeOver: onTakeOver
-            )
-          }
-        }
-      }
-      .padding(12)
-      .background(.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 9))
-      .overlay {
-        RoundedRectangle(cornerRadius: 9)
-          .stroke(saved.state == "failed" ? Color.red.opacity(0.35) : Color.secondary.opacity(0.18))
-      }
-    }
-  }
-
-  private var services: [PortdeckService] {
-    project.worktrees.flatMap(\.services)
-  }
-
-  private var serviceCount: Int {
-    services.count
-  }
-
-  private var openURL: URL? {
-    if let rawURL = services.compactMap({ $0.openURLString(preferNamedURLs: false) }).first,
-      let url = URL(string: rawURL)
-    {
-      return url
-    }
-    if let rawURL = project.repoFolderURLString {
-      return URL(string: rawURL)
-    }
-    return nil
-  }
-
-  private var openLabel: String {
-    openURL?.isFileURL == true ? "Open Folder" : "Open"
-  }
-}
-
-private struct SavedProjectControlButton: View {
-  let project: ProjectGroup
-  let saved: SavedProjectStatus
-  let onStart: (SavedProjectStatus) -> Void
-  let onStop: (SavedProjectStatus) -> Void
-  let onTakeOver: (ProjectGroup) -> Void
-
-  var body: some View {
-    Button(action: run) {
-      Label(label, systemImage: systemImage)
-        .font(.caption.weight(.semibold))
-        .frame(minWidth: 58)
-    }
-    .buttonStyle(.borderedProminent)
-    .controlSize(.small)
-    .tint(isStopAction ? .red : .blue)
-  }
-
-  private func run() {
-    switch saved.state {
-    case "running", "starting": onStop(saved)
-    case "external": onTakeOver(project)
-    default: onStart(saved)
-    }
-  }
-
-  private var isStopAction: Bool {
-    saved.state == "running" || saved.state == "starting"
-  }
-
-  private var systemImage: String {
-    if isStopAction { return "stop.fill" }
-    return saved.state == "external" ? "arrow.clockwise" : "play.fill"
-  }
-
-  private var label: String {
-    if isStopAction { return "Stop" }
-    return saved.state == "external" ? "Restart via PortDeck" : "Start"
-  }
-}
-
-private struct SavedProjectActionsMenu: View {
-  let project: ProjectGroup
-  let isDisabled: Bool
-  let onChangePort: (ProjectGroup) -> Void
-  let onRemove: (ProjectGroup) -> Void
-
-  var body: some View {
-    Menu {
-      if let repoRoot = project.repoRoot {
-        Button {
-          openFolderInVSCode(repoRoot)
-        } label: {
-          Label("Open in VS Code", systemImage: "chevron.left.forwardslash.chevron.right")
-        }
-        Button {
-          NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: repoRoot)])
-        } label: {
-          Label("Reveal in Finder", systemImage: "finder")
-        }
-      }
-      if let saved = project.savedProject {
-        if saved.supportsPortSwitching {
-          Divider()
-          Button {
-            onChangePort(project)
-          } label: {
-            Label("Restart or change port...", systemImage: "arrow.left.arrow.right")
-          }
-          .disabled(isDisabled)
-        }
-        if let logPath = saved.logPath, FileManager.default.fileExists(atPath: logPath) {
-          Button {
-            NSWorkspace.shared.open(URL(fileURLWithPath: logPath))
-          } label: {
-            Label("View current run log", systemImage: "doc.text")
-          }
-        }
-        Divider()
-        Button(role: .destructive) {
-          onRemove(project)
-        } label: {
-          Label("Remove project...", systemImage: "trash")
-        }
-        .disabled(isDisabled)
-      }
-    } label: {
-      Image(systemName: "ellipsis.circle")
-        .font(.title3)
-        .foregroundStyle(.secondary)
-        .frame(width: 28, height: 24)
-    }
-    .menuIndicator(.hidden)
-    .buttonStyle(.plain)
-    .accessibilityLabel("Open \(project.projectName) project actions")
-    .help("Open \(project.projectName) project actions")
-  }
-}
-
-private struct SavedProjectsEmptyState: View {
-  let isFiltering: Bool
-
-  var body: some View {
-    VStack(spacing: 10) {
-      Image(systemName: isFiltering ? "magnifyingglass" : "square.stack.3d.up")
-        .font(.title2)
-        .foregroundStyle(.secondary)
-      Text(isFiltering ? "No matching projects" : "No saved projects yet")
-        .font(.headline)
-      Text(isFiltering
-        ? "Try a different name, folder, state, or port."
-        : "Start a project locally, then add it here. PortDeck will remember how to launch it.")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .multilineTextAlignment(.center)
-        .frame(maxWidth: 330)
-    }
-    .frame(maxWidth: .infinity)
-    .padding(.vertical, 30)
-  }
-}
-
-private struct SavedProjectPickerOverlay: View {
-  let projects: [ProjectGroup]
-  let onChooseProject: (ProjectGroup) -> Void
-  let onDismiss: () -> Void
-
-  var body: some View {
-    ZStack {
-      Color.black.opacity(0.24)
-        .ignoresSafeArea()
-        .onTapGesture(perform: onDismiss)
-
-      VStack(spacing: 0) {
-        HStack(spacing: 10) {
-          VStack(alignment: .leading, spacing: 2) {
-            Text("Add running project")
-              .font(.headline)
-            Text("Choose a project PortDeck already sees running.")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-          Spacer()
-          Button(action: onDismiss) {
-            Image(systemName: "xmark.circle.fill")
-              .font(.title3)
-              .foregroundStyle(.secondary)
-          }
-          .buttonStyle(.plain)
-          .keyboardShortcut(.cancelAction)
-          .accessibilityLabel("Close add project")
-        }
-        .padding(14)
-
-        Divider()
-
-        if projects.isEmpty {
-          VStack(spacing: 7) {
-            Text("No unsaved running projects")
-              .font(.callout.weight(.semibold))
-            Text("Start a project locally, then come back here to add it.")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .multilineTextAlignment(.center)
-          }
-          .frame(maxWidth: .infinity)
-          .padding(.vertical, 18)
-        } else {
-          ScrollView {
-            VStack(spacing: 5) {
-              ForEach(projects) { project in
-                Button {
-                  onChooseProject(project)
-                } label: {
-                  HStack(spacing: 9) {
-                    Image(systemName: "play.circle.fill")
-                      .foregroundStyle(.green)
-                    VStack(alignment: .leading, spacing: 2) {
-                      Text(project.projectName)
-                        .font(.callout.weight(.semibold))
-                      Text(project.repoRoot ?? project.worktrees.compactMap(\.path).first ?? "Running locally")
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    }
-                    Spacer(minLength: 0)
-                    Text("\(project.worktrees.flatMap(\.services).count) running")
-                      .font(.caption2)
-                      .foregroundStyle(.secondary)
-                    Image(systemName: "chevron.right")
-                      .font(.caption2.weight(.bold))
-                      .foregroundStyle(.tertiary)
-                  }
-                  .padding(9)
-                  .contentShape(Rectangle())
-                  .background(.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-              }
-            }
-            .padding(10)
-          }
-          .frame(maxHeight: 300)
-        }
-
-      }
-      .frame(width: 420)
-      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-      .overlay {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-          .stroke(.white.opacity(0.16), lineWidth: 1)
-      }
-      .shadow(color: .black.opacity(0.30), radius: 24, y: 12)
-      .padding()
-    }
-  }
-}
-
-private struct SavedProjectActionMessage: View {
-  let message: String
-  let result: SavedProjectRunResult?
-  var onUseSuggestedPort: (() -> Void)? = nil
-  var onUsePreviousPort: (() -> Void)? = nil
-  let onDismiss: () -> Void
-
-  var body: some View {
-    HStack(alignment: .top, spacing: 8) {
-      Image(systemName: "exclamationmark.triangle.fill")
-        .foregroundStyle(.orange)
-      VStack(alignment: .leading, spacing: 5) {
-        Text(message)
-          .font(.caption.weight(.semibold))
-        if let port = result?.suggestedPort, let onUseSuggestedPort {
-          Button("Use :\(port)", action: onUseSuggestedPort)
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-        } else if let previousPort = result?.previousPort, let onUsePreviousPort {
-          Button("Start again on :\(previousPort)", action: onUsePreviousPort)
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-        }
-      }
-      Spacer(minLength: 0)
-      Button(action: onDismiss) {
-        Image(systemName: "xmark")
-          .font(.caption.weight(.bold))
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel("Dismiss saved project message")
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(9)
-    .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-  }
-}
-
 private struct ProjectSection: View {
   let project: VisibleProjectGroup
   let preferNamedURLs: Bool
@@ -2037,7 +1296,6 @@ private struct ProjectSection: View {
   let stoppingProjectID: String?
   let onStop: (PortdeckService) -> Void
   let onStopAll: (ProjectStopAllTarget) -> Void
-  let onSaveProject: (ProjectGroup) -> Void
   let onToggle: () -> Void
 
   var body: some View {
@@ -2088,17 +1346,6 @@ private struct ProjectSection: View {
             .frame(width: 28)
             .help("Stopping project services")
         } else {
-          if canSaveProject {
-#if !APP_STORE
-            Button("Add to Projects") {
-              onSaveProject(project.group)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            .font(.caption2.weight(.semibold))
-            .help("Save \(project.group.projectName) as a project launcher")
-#endif
-          }
           ProjectHeaderActionsMenu(
             project: project.group,
             stopAllTarget: stopAllTarget,
@@ -2163,15 +1410,6 @@ private struct ProjectSection: View {
 
   private var stopAllTarget: ProjectStopAllTarget? {
     project.group.stopAllTarget
-  }
-
-  private var canSaveProject: Bool {
-    project.group.savedProject == nil
-      && (project.group.repoRoot != nil || project.group.worktrees.contains(where: { $0.path != nil }))
-  }
-
-  private var hasHeaderActions: Bool {
-    true
   }
 
   private var isProjectStopping: Bool {
@@ -3184,7 +2422,7 @@ private struct ProviderCustomizationOverlay: View {
             Text("Customize providers")
               .font(.headline)
               .fontWeight(.semibold)
-            Text("Local stays first. Projects follows it; providers can be reordered.")
+            Text("Local stays first; providers can be reordered.")
               .font(.caption)
               .foregroundStyle(.secondary)
           }
@@ -3280,334 +2518,6 @@ private struct ProviderCustomizationOverlay: View {
     return model.isVisible(provider)
       ? "Hide the \(provider.title) provider tab"
       : "Show the \(provider.title) provider tab"
-  }
-}
-
-private struct SavedProjectEditorOverlay: View {
-  @ObservedObject var model: StatusModel
-  let seed: SavedProjectEditorSeed
-  let onDismiss: () -> Void
-  let onSaved: () -> Void
-
-  @State private var projectName: String
-  @State private var projectPath: String
-  @State private var command = ""
-  @State private var portText = ""
-  @State private var suggestions: [SavedProjectSuggestion] = []
-  @State private var selectedSuggestionID: String?
-  @State private var isLoading = true
-  @State private var loadError: String?
-  @State private var isSaving = false
-  @State private var usesSeedServices = true
-
-  init(
-    model: StatusModel,
-    seed: SavedProjectEditorSeed,
-    onDismiss: @escaping () -> Void,
-    onSaved: @escaping () -> Void
-  ) {
-    self.model = model
-    self.seed = seed
-    self.onDismiss = onDismiss
-    self.onSaved = onSaved
-    _projectName = State(initialValue: seed.suggestedName ?? "")
-    _projectPath = State(initialValue: seed.path)
-  }
-
-  var body: some View {
-    ZStack {
-      Color.black.opacity(0.24)
-        .ignoresSafeArea()
-        .onTapGesture { if !isSaving { onDismiss() } }
-
-      VStack(spacing: 0) {
-        HStack(spacing: 10) {
-          VStack(alignment: .leading, spacing: 2) {
-            Text("Save project")
-              .font(.headline)
-            Text("Confirm one command. PortDeck will never run a suggestion automatically.")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-          Spacer()
-          Button(action: onDismiss) {
-            Image(systemName: "xmark.circle.fill")
-              .font(.title3)
-              .foregroundStyle(.secondary)
-          }
-          .buttonStyle(.plain)
-          .disabled(isSaving)
-          .keyboardShortcut(.cancelAction)
-          .accessibilityLabel("Cancel saved project setup")
-        }
-        .padding(14)
-
-        Divider()
-
-        ScrollView {
-          VStack(alignment: .leading, spacing: 12) {
-            editorField(title: "Project name") {
-              TextField("Project name", text: $projectName)
-                .textFieldStyle(.roundedBorder)
-            }
-
-            editorField(title: "Folder") {
-              HStack(spacing: 8) {
-                Text(projectPath)
-                  .font(.caption.monospaced())
-                  .lineLimit(1)
-                  .truncationMode(.middle)
-                  .textSelection(.enabled)
-                  .frame(maxWidth: .infinity, alignment: .leading)
-                Button("Change...", action: chooseFolder)
-                  .controlSize(.small)
-              }
-            }
-
-            if isLoading {
-              HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Looking for the normal dev command...")
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-              }
-            } else if !suggestions.isEmpty {
-              editorField(title: "Suggested commands") {
-                VStack(spacing: 5) {
-                  ForEach(suggestions) { suggestion in
-                    Button {
-                      selectSuggestion(suggestion)
-                    } label: {
-                      HStack(alignment: .top, spacing: 9) {
-                        Image(systemName: selectedSuggestionID == suggestion.id ? "checkmark.circle.fill" : "circle")
-                          .foregroundStyle(selectedSuggestionID == suggestion.id ? .blue : .secondary)
-                        VStack(alignment: .leading, spacing: 2) {
-                          Text(suggestion.title)
-                            .font(.caption.weight(.semibold))
-                          Text(suggestion.command)
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                      }
-                      .padding(8)
-                      .background(
-                        selectedSuggestionID == suggestion.id ? Color.blue.opacity(0.08) : Color.primary.opacity(0.035),
-                        in: RoundedRectangle(cornerRadius: 7)
-                      )
-                    }
-                    .buttonStyle(.plain)
-                  }
-                }
-              }
-            } else {
-              Label(
-                "PortDeck could not find a reusable command. Enter the command you normally run for this project.",
-                systemImage: "info.circle"
-              )
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .fixedSize(horizontal: false, vertical: true)
-            }
-
-            editorField(title: "Launch command") {
-              TextField("npm run dev", text: $command)
-                .textFieldStyle(.roundedBorder)
-                .font(.body.monospaced())
-            }
-
-            if command.contains("{port}") {
-              editorField(title: "Primary port") {
-                TextField("3000", text: $portText)
-                  .textFieldStyle(.roundedBorder)
-                  .frame(width: 110)
-              }
-            }
-
-            if let error = loadError ?? model.projectConfigurationError {
-              Label(error, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption)
-                .foregroundStyle(.red)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-          }
-          .padding(14)
-        }
-        .frame(maxHeight: 440)
-
-        Divider()
-
-        HStack {
-          Button("Cancel", action: onDismiss)
-            .keyboardShortcut(.cancelAction)
-            .disabled(isSaving)
-          Spacer()
-          if isSaving { ProgressView().controlSize(.small) }
-          Button("Save project", action: save)
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!canSave || isSaving || isLoading)
-        }
-        .padding(14)
-      }
-      .frame(width: 460)
-      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-      .overlay { RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.16)) }
-      .shadow(color: .black.opacity(0.30), radius: 24, y: 12)
-      .padding()
-    }
-    .task(id: projectPath) { await loadSuggestions() }
-  }
-
-  private func editorField<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-    VStack(alignment: .leading, spacing: 5) {
-      Text(title.uppercased())
-        .font(.caption2.weight(.semibold))
-        .foregroundStyle(.secondary)
-      content()
-    }
-  }
-
-  private var canSave: Bool {
-    !projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-      && !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-      && (!command.contains("{port}") || validPort != nil)
-  }
-
-  private var validPort: Int? {
-    guard let port = Int(portText), (1024...65535).contains(port) else { return nil }
-    return port
-  }
-
-  private func loadSuggestions() async {
-    isLoading = true
-    loadError = nil
-    do {
-      let result = try await model.suggestions(
-        forProjectPath: projectPath,
-        serviceIDs: usesSeedServices ? seed.serviceIDs : []
-      )
-      projectPath = result.path
-      if projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-        projectName = result.name
-      }
-      suggestions = result.suggestions
-      if let first = result.suggestions.first {
-        selectSuggestion(first)
-      }
-    } catch {
-      suggestions = []
-      loadError = localStatusErrorMessage(error.localizedDescription)
-    }
-    isLoading = false
-  }
-
-  private func selectSuggestion(_ suggestion: SavedProjectSuggestion) {
-    selectedSuggestionID = suggestion.id
-    command = suggestion.command
-    portText = suggestion.port.map(String.init) ?? ""
-  }
-
-  private func chooseFolder() {
-    let panel = NSOpenPanel()
-    panel.title = "Choose a project folder"
-    panel.prompt = "Choose Project"
-    panel.canChooseFiles = false
-    panel.canChooseDirectories = true
-    panel.allowsMultipleSelection = false
-    guard panel.runModal() == .OK, let url = panel.url else { return }
-    usesSeedServices = false
-    projectPath = url.path
-    projectName = ""
-    command = ""
-    portText = ""
-    suggestions = []
-    selectedSuggestionID = nil
-  }
-
-  private func save() {
-    guard canSave else { return }
-    isSaving = true
-    model.clearProjectActionMessage()
-    let draft = SavedProjectDraft(
-      name: projectName.trimmingCharacters(in: .whitespacesAndNewlines),
-      path: projectPath,
-      command: command.trimmingCharacters(in: .whitespacesAndNewlines),
-      port: command.contains("{port}") ? validPort : nil
-    )
-    Task {
-      if await model.saveProject(draft) { onSaved() }
-      isSaving = false
-    }
-  }
-}
-
-private struct SavedProjectPortOverlay: View {
-  let projectName: String
-  let currentPort: Int?
-  let isRunning: Bool
-  let isWorking: Bool
-  let onDismiss: () -> Void
-  let onConfirm: (Int) -> Void
-
-  @State private var portText: String
-
-  init(
-    projectName: String,
-    currentPort: Int?,
-    isRunning: Bool,
-    isWorking: Bool,
-    onDismiss: @escaping () -> Void,
-    onConfirm: @escaping (Int) -> Void
-  ) {
-    self.projectName = projectName
-    self.currentPort = currentPort
-    self.isRunning = isRunning
-    self.isWorking = isWorking
-    self.onDismiss = onDismiss
-    self.onConfirm = onConfirm
-    _portText = State(initialValue: currentPort.map(String.init) ?? "")
-  }
-
-  var body: some View {
-    ZStack {
-      Color.black.opacity(0.24).ignoresSafeArea().onTapGesture(perform: onDismiss)
-      VStack(alignment: .leading, spacing: 12) {
-        Text(isRunning ? "Restart on another port" : "Start on a port")
-          .font(.headline)
-        Text(projectName)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        TextField("Port", text: $portText)
-          .textFieldStyle(.roundedBorder)
-          .font(.title3.monospacedDigit())
-        Text("PortDeck checks the target before stopping or starting anything.")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        HStack {
-          Button("Cancel", action: onDismiss).keyboardShortcut(.cancelAction)
-          Spacer()
-          if isWorking { ProgressView().controlSize(.small) }
-          Button(isRunning ? "Restart" : "Start") {
-            if let port { onConfirm(port) }
-          }
-          .buttonStyle(.borderedProminent)
-          .keyboardShortcut(.defaultAction)
-          .disabled(port == nil || port == currentPort || isWorking)
-        }
-      }
-      .padding(16)
-      .frame(width: 360)
-      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-      .overlay { RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.16)) }
-      .shadow(color: .black.opacity(0.30), radius: 24, y: 12)
-    }
-  }
-
-  private var port: Int? {
-    guard let value = Int(portText), (1024...65535).contains(value) else { return nil }
-    return value
   }
 }
 

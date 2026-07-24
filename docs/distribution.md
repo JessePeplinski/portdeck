@@ -4,12 +4,12 @@ PortDeck's public beta is a Developer ID-signed and notarized arm64 app distribu
 
 ## Current target
 
-The current public beta is `v0.1.0-beta.5` for Apple Silicon Macs running macOS 14 or newer:
+The next public beta target is `v0.1.0-beta.6` for Apple Silicon Macs running macOS 14 or newer:
 
-- [`PortDeck-0.1.0-beta.5-macos-arm64.dmg`](../../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.dmg)
-- [`PortDeck-0.1.0-beta.5-macos-arm64.dmg.sha256`](../../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.dmg.sha256)
-- [`PortDeck-0.1.0-beta.5-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.zip)
-- [`PortDeck-0.1.0-beta.5-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.zip.sha256)
+- [`PortDeck-0.1.0-beta.6-macos-arm64.dmg`](../../../releases/download/v0.1.0-beta.6/PortDeck-0.1.0-beta.6-macos-arm64.dmg)
+- [`PortDeck-0.1.0-beta.6-macos-arm64.dmg.sha256`](../../../releases/download/v0.1.0-beta.6/PortDeck-0.1.0-beta.6-macos-arm64.dmg.sha256)
+- [`PortDeck-0.1.0-beta.6-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.6/PortDeck-0.1.0-beta.6-macos-arm64.zip)
+- [`PortDeck-0.1.0-beta.6-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.6/PortDeck-0.1.0-beta.6-macos-arm64.zip.sha256)
 
 A universal/x86_64 build, in-app updater, and App Store package are outside the current beta contract.
 
@@ -18,11 +18,11 @@ A universal/x86_64 build, in-app updater, and App Store package are outside the 
 The direct-download app contains only:
 
 - the native `PortDeckMac` executable;
-- the esbuild-produced Local/Projects helper;
+- the esbuild-produced local-discovery helper;
 - Node.js 24.18.0 arm64 for that helper;
 - the approved icon, `Info.plist`, code-signing resources, and required licenses/notices.
 
-Provider CLIs are external dependencies. The app, ZIP, and DMG must not contain `ProviderRuntimes`, a provider `node_modules` tree, provider wrappers, provider credentials, or provider authentication state. This removes the largest part of the previous bundle while preserving the self-contained Local/Projects workflow.
+Provider CLIs are external dependencies. The app, ZIP, and DMG must not contain `ProviderRuntimes`, a provider `node_modules` tree, provider wrappers, provider credentials, or provider authentication state. This removes the largest part of the previous bundle while preserving self-contained local discovery.
 
 The release limits are hard gates:
 
@@ -45,7 +45,7 @@ npm run verify:mac:release
 
 The app is written to `portdeck-mac/.build/release-artifacts/PortDeck.app`; debug symbols are written to `portdeck-mac/.build/release-artifacts/PortDeckMac.dSYM`.
 
-The candidate is intentionally not a public artifact. It has no production icon, Developer ID signature, secure timestamp, notarization ticket, or Gatekeeper acceptance. Verification copies it outside the checkout, uses isolated home/state directories and a scrubbed `PATH`, runs the Local/Projects status/save/start/restart/port-switch/stop lifecycle, checks signatures and entitlements, asserts that provider CLIs are absent, and enforces the app/file-count budgets.
+The candidate is intentionally not a public artifact. It has no production icon, Developer ID signature, secure timestamp, notarization ticket, or Gatekeeper acceptance. Verification copies it outside the checkout, uses an isolated home directory and a scrubbed `PATH`, exercises the status contract, checks signatures and entitlements, asserts that provider CLIs are absent, and enforces the app/file-count budgets.
 
 ## Production GitHub release workflow
 
@@ -90,7 +90,7 @@ Do not run the guarded signing/notarization workflow, create a tag, publish a Gi
 - no App Sandbox or `get-task-allow`;
 - a valid stapled ticket and Gatekeeper acceptance under quarantine;
 - no builder paths, credentials, auth stores, `.env` files, or escaping symlinks;
-- self-contained Local/Projects lifecycle behavior with no system Node dependency;
+- self-contained local discovery with no system Node dependency;
 - successful LaunchServices startup of the quarantined app.
 
 `verify-release-app.sh --production-dmg <dmg> <sha256>` additionally requires:
@@ -145,4 +145,4 @@ The cask in [`JessePeplinski/homebrew-tap`](https://github.com/JessePeplinski/ho
 
 External executable discovery and CLI credential access are not part of the current App Sandbox baseline. A future App Store target must use separately reviewed sandbox-compatible authentication/API adapters or omit provider integrations; it must not re-embed the previous provider dependency trees as an accidental consequence of App Store work.
 
-Local/Projects remains the only bundled runtime boundary. See [app-store-readiness.md](app-store-readiness.md) for the separate sandbox plan.
+Local discovery remains the only bundled runtime boundary. See [app-store-readiness.md](app-store-readiness.md) for the separate sandbox plan.

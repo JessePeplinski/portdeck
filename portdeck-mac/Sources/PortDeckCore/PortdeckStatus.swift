@@ -36,147 +36,19 @@ public struct ProjectGroup: Decodable, Identifiable, Sendable {
   public let remoteUrl: String?
   public let repositoryUrl: String?
   public let worktrees: [WorktreeGroup]
-  public let savedProject: SavedProjectStatus?
 
   public init(
     projectName: String,
     repoRoot: String?,
     remoteUrl: String? = nil,
     repositoryUrl: String? = nil,
-    worktrees: [WorktreeGroup],
-    savedProject: SavedProjectStatus? = nil
+    worktrees: [WorktreeGroup]
   ) {
     self.projectName = projectName
     self.repoRoot = repoRoot
     self.remoteUrl = remoteUrl
     self.repositoryUrl = repositoryUrl
     self.worktrees = worktrees
-    self.savedProject = savedProject
-  }
-}
-
-public struct SavedProjectStatus: Decodable, Equatable, Sendable {
-  public let id: String
-  public let state: String
-  public let port: Int?
-  public let supportsPortSwitching: Bool
-  public let logPath: String?
-  public let lastError: String?
-  public let previousPort: Int?
-
-  public init(
-    id: String,
-    state: String,
-    port: Int?,
-    supportsPortSwitching: Bool,
-    logPath: String?,
-    lastError: String?,
-    previousPort: Int?
-  ) {
-    self.id = id
-    self.state = state
-    self.port = port
-    self.supportsPortSwitching = supportsPortSwitching
-    self.logPath = logPath
-    self.lastError = lastError
-    self.previousPort = previousPort
-  }
-}
-
-public struct SavedProjectSuggestionResult: Decodable, Sendable {
-  public let path: String
-  public let name: String
-  public let suggestions: [SavedProjectSuggestion]
-
-  public init(path: String, name: String, suggestions: [SavedProjectSuggestion]) {
-    self.path = path
-    self.name = name
-    self.suggestions = suggestions
-  }
-}
-
-public struct SavedProjectSuggestion: Decodable, Identifiable, Equatable, Sendable {
-  public let id: String
-  public let title: String
-  public let detail: String
-  public let command: String
-  public let port: Int?
-  public let source: String
-
-  public init(id: String, title: String, detail: String, command: String, port: Int?, source: String) {
-    self.id = id
-    self.title = title
-    self.detail = detail
-    self.command = command
-    self.port = port
-    self.source = source
-  }
-}
-
-public struct SavedProjectDraft: Encodable, Equatable, Sendable {
-  public let id: String?
-  public let name: String
-  public let path: String
-  public let command: String
-  public let port: Int?
-
-  public init(id: String? = nil, name: String, path: String, command: String, port: Int?) {
-    self.id = id
-    self.name = name
-    self.path = path
-    self.command = command
-    self.port = port
-  }
-}
-
-public struct SavedProjectMutationResult: Decodable, Sendable {
-  public let ok: Bool
-  public let message: String?
-}
-
-public struct SavedProjectRunResult: Decodable, Equatable, Sendable {
-  public let ok: Bool
-  public let projectId: String
-  public let action: String
-  public let message: String
-  public let state: String?
-  public let port: Int?
-  public let previousPort: Int?
-  public let suggestedPort: Int?
-  public let logPath: String?
-
-  enum CodingKeys: String, CodingKey {
-    case ok
-    case projectId
-    case action
-    case message
-    case state
-    case port
-    case previousPort
-    case suggestedPort
-    case logPath
-  }
-
-  public init(
-    ok: Bool,
-    projectId: String,
-    action: String,
-    message: String,
-    state: String?,
-    port: Int?,
-    previousPort: Int?,
-    suggestedPort: Int?,
-    logPath: String?
-  ) {
-    self.ok = ok
-    self.projectId = projectId
-    self.action = action
-    self.message = message
-    self.state = state
-    self.port = port
-    self.previousPort = previousPort
-    self.suggestedPort = suggestedPort
-    self.logPath = logPath
   }
 }
 

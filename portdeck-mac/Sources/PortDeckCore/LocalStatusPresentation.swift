@@ -290,8 +290,7 @@ public enum LocalStatusPresentation {
         repoRoot: group.repoRoot,
         remoteUrl: group.remoteUrl,
         repositoryUrl: group.repositoryUrl,
-        worktrees: worktrees,
-        savedProject: group.savedProject
+        worktrees: worktrees
       )
     }
 

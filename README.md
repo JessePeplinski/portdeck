@@ -1,18 +1,18 @@
 # PortDeck
 
-PortDeck is a native macOS menu-bar command center for local development services, saved projects, and read-only deployment-provider health.
+PortDeck is a native macOS menu-bar command center for local development services and read-only deployment-provider health.
 
 > [!IMPORTANT]
-> PortDeck is in pre-release development. `v0.1.0-beta.5` is the current signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production direct-download artifacts remain separate workflows.
+> PortDeck is in pre-release development. `v0.1.0-beta.6` is the next signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production direct-download artifacts remain separate workflows.
 
 ## What PortDeck does
 
 - Discovers listening ports, processes, Git repositories and worktrees, and Docker services on the local Mac.
-- Keeps saved projects available from a dedicated Projects view, with explicit start, stop, open, and confirmed port-switching controls.
+- Groups running services by project and worktree, with focused open, inspect, and confirmed stop controls.
 - Shows read-only production and deployment health for Vercel, Convex, GitHub Actions, Supabase, Cloudflare, Railway, Fly.io, and Netlify.
 - Keeps provider tabs configurable without changing the underlying discovery or provider contracts.
 
-Provider views are observation surfaces. They use existing authenticated sessions owned by the providers' official CLIs and do not deploy, restart, configure, or delete remote resources. Saved-project controls are the deliberate control surface: they change only local process state after an explicit user action and PortDeck's ownership and identity checks.
+Provider views are observation surfaces. They use existing authenticated sessions owned by the providers' official CLIs and do not deploy, restart, configure, or delete remote resources. Local stop controls act only on currently discovered process or Docker identities after explicit confirmation.
 
 ## Install the Apple Silicon beta
 
@@ -25,17 +25,17 @@ open -a PortDeck
 
 Homebrew installs the same signed and notarized app published on GitHub. For a manual installation, download the DMG, open it, and drag PortDeck into Applications:
 
-- [`PortDeck-0.1.0-beta.5-macos-arm64.dmg`](../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.dmg)
-- [`PortDeck-0.1.0-beta.5-macos-arm64.dmg.sha256`](../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.dmg.sha256)
+- [`PortDeck-0.1.0-beta.6-macos-arm64.dmg`](../../releases/download/v0.1.0-beta.6/PortDeck-0.1.0-beta.6-macos-arm64.dmg)
+- [`PortDeck-0.1.0-beta.6-macos-arm64.dmg.sha256`](../../releases/download/v0.1.0-beta.6/PortDeck-0.1.0-beta.6-macos-arm64.dmg.sha256)
 
 Download both files into the same directory, verify the disk image, then open it:
 
 ```bash
-shasum -a 256 -c PortDeck-0.1.0-beta.5-macos-arm64.dmg.sha256
-open PortDeck-0.1.0-beta.5-macos-arm64.dmg
+shasum -a 256 -c PortDeck-0.1.0-beta.6-macos-arm64.dmg.sha256
+open PortDeck-0.1.0-beta.6-macos-arm64.dmg
 ```
 
-The versioned ZIP and checksum remain on the GitHub Release for Homebrew and fallback installs. Both containers hold the same Developer ID-signed, Apple-notarized app. PortDeck does not use App Sandbox in the direct-download build because local process, port, Git, Docker, external provider CLI, and saved-project controls require the separately verified direct-download boundary.
+The versioned ZIP and checksum remain on the GitHub Release for Homebrew and fallback installs. Both containers hold the same Developer ID-signed, Apple-notarized app. PortDeck does not use App Sandbox in the direct-download build because local process, port, Git, Docker, stop controls, and external provider CLI access require the separately verified direct-download boundary.
 
 Provider tabs stay available even when their CLI is missing. PortDeck shows the exact install command, official documentation, and a Refresh action; it never installs or upgrades provider CLIs automatically. The current supported ranges are:
 
@@ -70,20 +70,20 @@ The launcher builds and opens `PortDeck.app`; PortDeck then appears in the menu 
 
 ## Build the local arm64 release candidate
 
-After `npm ci`, build and verify the self-contained Local/Projects candidate from the repository root:
+After `npm ci`, build and verify the self-contained local-discovery candidate from the repository root:
 
 ```bash
 npm run build:mac:release
 npm run verify:mac:release
 ```
 
-The artifact is written to `portdeck-mac/.build/release-artifacts/PortDeck.app`. It bundles the PortDeck helper and the official arm64 Node.js 24.18.0 binary, so Local discovery and saved-project start, stop, restart, and port switching do not require this checkout, a PortDeck CLI installation, or a system Node.js installation. Provider CLIs are intentionally external. The verifier copies the app outside the checkout, scrubs `PATH`, isolates PortDeck state, exercises Local/Projects, enforces a 110 MiB app budget and nine-file ceiling, and launches the copied app.
+The artifact is written to `portdeck-mac/.build/release-artifacts/PortDeck.app`. It bundles the PortDeck helper and the official arm64 Node.js 24.18.0 binary, so local discovery and confirmed service stops do not require this checkout, a PortDeck CLI installation, or a system Node.js installation. Provider CLIs are intentionally external. The verifier copies the app outside the checkout, scrubs `PATH`, exercises the status contract, enforces a 110 MiB app budget and nine-file ceiling, and launches the copied app.
 
 This artifact is a local packaging candidate, not the public ZIP. It has no production icon, Developer ID signature, or notarization ticket. It is ad-hoc signed with hardened runtime, does not enable App Sandbox, and is expected to fail Gatekeeper assessment.
 
 ## Repository layout
 
-- [`portdeck-app`](portdeck-app/) owns local discovery, saved-project process control, and the [`portdeck status --json`](docs/status-json.md) contract.
+- [`portdeck-app`](portdeck-app/) owns local discovery, confirmed service-stop controls, and the [`portdeck status --json`](docs/status-json.md) contract.
 - [`portdeck-mac`](portdeck-mac/) is the Swift menu-bar app that renders and invokes those contracts.
 - [`docs/architecture.md`](docs/architecture.md) records the application and provider boundaries.
 - [`docs/distribution.md`](docs/distribution.md) defines the direct-download packaging contract.
@@ -97,7 +97,7 @@ The static marketing site is maintained independently in [`portdeck-site`](https
 - Provider commands are read-only and scoped to the data PortDeck renders.
 - PortDeck does not modify monitored projects, their manifests, lockfiles, CLI context, or remote resources.
 - Command failures are bounded and credential-redacted before they reach the UI.
-- Saved-project commands and logs stay in PortDeck's private local application data.
+- PortDeck does not keep project launch commands or manage project process groups.
 
 See [`docs/architecture.md`](docs/architecture.md) for the detailed provider allowlists and failure behavior.
 
@@ -106,7 +106,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed provider all
 The production pipeline is deliberately separate from `build:mac`, `run-dev-app.sh`, the sandbox probe, and the local ad-hoc candidate. It:
 
 1. Uses the approved, checksum-pinned production `.icns` in `portdeck-mac/Resources`, and requires a valid Developer ID Application identity and notarytool Keychain profile.
-2. Builds the arm64 release app with the bundled Local/Projects helper and Node.js runtime, strips both Mach-O executables, and keeps matching Swift debug symbols outside the app.
+2. Builds the arm64 release app with the bundled local-discovery helper and Node.js runtime, strips both Mach-O executables, and keeps matching Swift debug symbols outside the app.
 3. Excludes every provider CLI and provider dependency tree from the bundle.
 4. Signs every nested Mach-O individually with hardened runtime and secure timestamps, then signs the outer app without App Sandbox.
 5. Notarizes a temporary ZIP, inspects the accepted log, staples the ticket to `PortDeck.app`, and creates the final ZIP with `ditto -c -k --keepParent`.
