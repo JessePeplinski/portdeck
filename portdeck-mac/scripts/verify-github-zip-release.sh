@@ -51,17 +51,13 @@ extract_root="$verification_root/extracted"
 copied_zip="$download_root/$release_asset"
 app_bundle="$extract_root/PortDeck.app"
 isolated_home="$verification_root/home"
-state_directory="$verification_root/state"
-project_directory="$verification_root/project"
 app_pid=""
 open_pid=""
-project_id="production-release-fixture"
 
 run_helper() {
   /usr/bin/env -i \
     HOME="$isolated_home" \
     CFFIXED_USER_HOME="$isolated_home" \
-    PORTDECK_STATE_DIR="$state_directory" \
     PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
     SHELL="/bin/zsh" \
     TMPDIR="$verification_root" \
@@ -71,9 +67,6 @@ run_helper() {
 }
 
 cleanup() {
-  if [[ -x "${bundled_node:-}" && -f "${bundled_cli:-}" ]]; then
-    run_helper run stop --project-id "$project_id" --json >/dev/null 2>&1 || true
-  fi
   if [[ -n "$app_pid" ]] && /bin/kill -0 "$app_pid" 2>/dev/null; then
     /bin/kill "$app_pid" 2>/dev/null || true
     wait "$app_pid" 2>/dev/null || true
@@ -86,7 +79,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-/bin/mkdir -p "$download_root" "$extract_root" "$isolated_home" "$state_directory" "$project_directory"
+/bin/mkdir -p "$download_root" "$extract_root" "$isolated_home"
 /usr/bin/ditto "$release_zip" "$copied_zip"
 quarantine_value="0081;$(/bin/date +%s);PortDeckReleaseVerifier;"
 /usr/bin/xattr -w com.apple.quarantine "$quarantine_value" "$copied_zip"
@@ -289,95 +282,16 @@ fi
 "$bundled_node" -e '
   const fs = require("node:fs");
   const status = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-  if (status.schemaVersion !== "0.1") throw new Error("Unexpected schemaVersion");
+  if (status.schemaVersion !== "0.2") throw new Error("Unexpected schemaVersion");
   for (const field of ["groups", "unknown", "warnings"]) {
     if (!Array.isArray(status[field])) throw new Error(`${field} must be an array`);
   }
 ' "$verification_root/status.json"
 
-free_port() {
-  "$bundled_node" -e '
-    const net = require("node:net");
-    const server = net.createServer();
-    server.listen(0, "127.0.0.1", () => {
-      console.log(server.address().port);
-      server.close();
-    });
-  '
-}
-
-port_is_open() {
-  "$bundled_node" -e '
-    const net = require("node:net");
-    const socket = net.createConnection({ host: "127.0.0.1", port: Number(process.argv[1]) });
-    socket.setTimeout(150);
-    socket.once("connect", () => { socket.destroy(); process.exit(0); });
-    const fail = () => { socket.destroy(); process.exit(1); };
-    socket.once("error", fail);
-    socket.once("timeout", fail);
-  ' "$1"
-}
-
-wait_for_port() {
-  local port="$1"
-  local expected="$2"
-  for _ in {1..60}; do
-    if port_is_open "$port"; then
-      [[ "$expected" == "open" ]] && return 0
-    else
-      [[ "$expected" == "closed" ]] && return 0
-    fi
-    /bin/sleep 0.1
-  done
-  fail "port $port did not become $expected"
-}
-
-server_path="$project_directory/server.mjs"
-/usr/bin/printf '%s\n' \
-  'import http from "node:http";' \
-  'const port = Number(process.argv[2]);' \
-  'http.createServer((_request, response) => response.end("ok")).listen(port, "127.0.0.1");' \
-  > "$server_path"
-first_port="$(free_port)"
-second_port="$(free_port)"
-while [[ "$second_port" == "$first_port" ]]; do second_port="$(free_port)"; done
-
-project_json="$("$bundled_node" -e '
-  const quote = (value) => `\x27${value.replaceAll("\x27", "\x27\\\x27\x27")}\x27`;
-  const project = {
-    id: process.argv[1],
-    name: "Production Release Fixture",
-    path: process.argv[2],
-    command: `${quote(process.argv[3])} ${quote(process.argv[4])} {port}`,
-    port: Number(process.argv[5])
-  };
-  process.stdout.write(JSON.stringify(project));
-' "$project_id" "$project_directory" "$bundled_node" "$server_path" "$first_port")"
-
-run_helper projects save --input "$project_json" --json > "$verification_root/save.json"
-run_helper run start --project-id "$project_id" --json > "$verification_root/start.json"
-wait_for_port "$first_port" open
-run_helper run restart --project-id "$project_id" --port "$first_port" --json > "$verification_root/restart.json"
-wait_for_port "$first_port" open
-run_helper run restart --project-id "$project_id" --port "$second_port" --json > "$verification_root/port-switch.json"
-wait_for_port "$first_port" closed
-wait_for_port "$second_port" open
-run_helper run stop --project-id "$project_id" --json > "$verification_root/stop.json"
-wait_for_port "$second_port" closed
-
-for result_file in save start restart port-switch stop; do
-  "$bundled_node" -e '
-    const fs = require("node:fs");
-    const result = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-    if (!result.ok) throw new Error(result.message ?? "PortDeck action failed");
-  ' "$verification_root/${result_file}.json"
-done
-
 existing_app_pids="$(/usr/bin/pgrep -x PortDeckMac || true)"
 /usr/bin/env -i \
   HOME="$isolated_home" \
   CFFIXED_USER_HOME="$isolated_home" \
-  PORTDECK_STATE_DIR="$state_directory" \
   PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
   SHELL="/bin/zsh" \
   TMPDIR="$verification_root" \
@@ -413,7 +327,7 @@ echo "Node.js: v${node_version}"
 echo "Signing: Developer ID Application, hardened runtime, secure timestamps"
 echo "Notarization: stapled ticket valid"
 echo "Gatekeeper: accepted quarantined extracted app"
-echo "External Local/Projects: status, save, start, restart, port switch, stop passed"
+echo "External Local discovery: status passed"
 echo "LaunchServices: quarantined extracted PortDeck.app launch passed"
 echo "Provider CLIs: external-only; no provider executables or dependencies bundled"
 echo "Size: ${app_size_kib} KiB app, ${zip_size_bytes} byte ZIP"

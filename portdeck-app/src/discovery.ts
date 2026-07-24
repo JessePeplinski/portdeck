@@ -10,7 +10,6 @@ import {
   parsePsOutput
 } from "./parsers.js";
 import { discoverNgrokExposures } from "./ngrok.js";
-import { mergeSavedProjects } from "./projects.js";
 import { probeHttpEndpoints } from "./probes.js";
 import { buildStatus, collectDockerHostPathCandidates } from "./status.js";
 import type {
@@ -38,12 +37,11 @@ type DiscoveryResult = {
 
 export async function getPortdeckStatus(): Promise<PortdeckStatus> {
   const discovery = await discover();
-  const status = await buildStatus({
+  return await buildStatus({
     generatedAt: new Date().toISOString(),
     probeEndpoints: probeHttpEndpoints,
     ...discovery
   });
-  return await mergeSavedProjects(status);
 }
 
 export async function discover(): Promise<DiscoveryResult> {

@@ -2,7 +2,7 @@
 
 ## Runtime glossary
 
-- **PortDeck runtime**: The bundled Local/Projects execution boundary at `Contents/Resources/PortDeckRuntime`. It contains the PortDeck helper and Node.js needed for local discovery and saved-project controls. It is part of the app bundle.
+- **PortDeck runtime**: The bundled local-discovery execution boundary at `Contents/Resources/PortDeckRuntime`. It contains the PortDeck helper and Node.js needed for local discovery and confirmed service stops. It is part of the app bundle.
 - **Provider integration**: A read-only adapter and UI for Vercel, Convex, GitHub Actions, Supabase, Cloudflare, Railway, Fly.io, or Netlify. An integration owns its allowed commands, decoding, polling, failure behavior, and presentation.
 - **Provider CLI**: A provider's user-installed executable and CLI-owned authenticated session. Provider CLIs are external dependencies; PortDeck does not bundle, install, upgrade, or copy their credentials.
 

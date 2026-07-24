@@ -6,7 +6,7 @@ PortDeck is not ready for App Store Connect. The signed and notarized direct-dow
 
 - The Swift package builds and tests, but `xcodebuild archive` produces a command-line product rather than a complete `.app` target.
 - `scripts/build-sandbox-probe-app.sh` assembles a local sandboxed feasibility probe. It is not a submission artifact.
-- `scripts/build-release-app.sh` assembles an arm64 direct-download candidate with a bundled Local/Projects helper and Node.js 24.18.0. That app is intentionally unsandboxed.
+- `scripts/build-release-app.sh` assembles an arm64 direct-download candidate with a bundled local-discovery helper and Node.js 24.18.0. That app is intentionally unsandboxed.
 - The direct-download production workflow adds the approved icon, Developer ID signing, notarization, and quarantine verification.
 - Provider CLIs are not embedded in either direct-download bundle. Convex, Supabase, Wrangler, Railway, flyctl, Netlify, Vercel, and GitHub integrations execute user-installed external CLIs and reuse their CLI-owned sessions.
 - External executable lookup and external CLI credential access are not proven App Sandbox behaviors.
@@ -17,9 +17,9 @@ Passing the direct-download verifier does not prove App Store compatibility.
 ## Next App Store slice
 
 1. Create a real macOS application target that archives `PortDeck.app`.
-2. Adapt the Local/Projects helper boundary to App Sandbox without assuming the direct-download Node entitlement set is acceptable.
+2. Adapt the local-discovery helper boundary to App Sandbox without assuming the direct-download Node entitlement set is acceptable.
 3. Give each embedded executable the smallest reviewed signing and sandbox entitlement set.
-4. Test listening ports, process identity, cwd, Git/worktrees, Docker, saved projects, and stop behavior while sandboxed.
+4. Test listening ports, process identity, cwd, Git/worktrees, Docker, and stop behavior while sandboxed.
 5. Keep only the core behaviors that work reliably without temporary entitlement exceptions or privilege escalation.
 
 ## Provider boundary

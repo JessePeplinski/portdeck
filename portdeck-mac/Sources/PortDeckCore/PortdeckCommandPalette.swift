@@ -14,10 +14,6 @@ public enum PortdeckCommandPaletteActionKind: Equatable, Sendable {
   case openRepository
   case stopService
   case stopProject
-  case startSavedProject
-  case stopSavedProject
-  case restartSavedProject
-  case openSavedProjectLog
   case refreshStatus
   case copyJSON
   case switchSource(PortdeckDashboardSource)
@@ -118,7 +114,7 @@ public enum PortdeckCommandPalette {
     for group in status.groups {
       actions.append(contentsOf: projectActions(group))
 
-      if group.savedProject == nil, let target = group.stopAllTarget {
+      if let target = group.stopAllTarget {
         actions.append(stopAllAction(target))
       }
 
@@ -156,77 +152,6 @@ public enum PortdeckCommandPalette {
       group.remoteUrl,
       group.repositoryUrl
     ].compactMap { $0 }
-
-    if let saved = group.savedProject {
-      let stateContext = context + [saved.state, saved.port.map(String.init)].compactMap { $0 }
-      switch saved.state {
-      case "running", "starting":
-        actions.append(PortdeckCommandPaletteAction(
-          id: "stop-saved-project-\(saved.id)",
-          kind: .stopSavedProject,
-          title: "Stop \(group.projectName)",
-          subtitle: saved.port.map { "PortDeck-owned on :\($0)" } ?? "PortDeck-owned project",
-          systemImage: "stop.fill",
-          role: .destructive,
-          project: group,
-          aliases: ["stop project", "stop \(group.projectName)"],
-          searchTokens: stateContext
-        ))
-      case "external":
-        actions.append(PortdeckCommandPaletteAction(
-          id: "restart-external-project-\(saved.id)",
-          kind: .restartSavedProject,
-          title: "Restart \(group.projectName) via PortDeck",
-          subtitle: "Stop discovered services, then run the saved command",
-          systemImage: "arrow.clockwise",
-          role: .utility,
-          project: group,
-          aliases: ["restart project", "take over project", "run via portdeck"],
-          searchTokens: stateContext
-        ))
-      default:
-        actions.append(PortdeckCommandPaletteAction(
-          id: "start-saved-project-\(saved.id)",
-          kind: .startSavedProject,
-          title: "Start \(group.projectName)",
-          subtitle: saved.port.map { "Start on :\($0)" } ?? "Run the saved command",
-          systemImage: "play.fill",
-          role: .utility,
-          project: group,
-          aliases: ["start project", "run project", "start \(group.projectName)"],
-          searchTokens: stateContext
-        ))
-      }
-
-      if saved.supportsPortSwitching {
-        actions.append(PortdeckCommandPaletteAction(
-          id: "change-saved-project-port-\(saved.id)",
-          kind: .restartSavedProject,
-          title: "Change \(group.projectName) port",
-          subtitle: saved.port.map { "Currently :\($0)" },
-          systemImage: "arrow.left.arrow.right",
-          role: .utility,
-          project: group,
-          aliases: ["change port", "switch port", "restart on port"],
-          searchTokens: stateContext
-        ))
-      }
-
-      if let logPath = saved.logPath {
-        actions.append(PortdeckCommandPaletteAction(
-          id: "open-saved-project-log-\(saved.id)",
-          kind: .openSavedProjectLog,
-          title: "View \(group.projectName) log",
-          subtitle: logPath,
-          systemImage: "doc.text",
-          role: .open,
-          project: group,
-          filePath: logPath,
-          aliases: ["project log", "view log", "open log"],
-          searchTokens: stateContext + [logPath]
-        ))
-      }
-    }
 
     if let folderURL = group.repoFolderURLString, let repoRoot = group.repoRoot {
       actions.append(

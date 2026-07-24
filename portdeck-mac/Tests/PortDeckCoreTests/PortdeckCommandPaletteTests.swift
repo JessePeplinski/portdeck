@@ -102,18 +102,9 @@ import Testing
   #expect(systemVisibleActions.containsAction(.toggleSystemListeners, title: "Hide likely system listeners"))
 }
 
-@Test func commandPaletteBuildsSavedProjectLifecycleAndJumpActions() throws {
-  let stopped = SavedProjectStatus(
-    id: "saved-portdeck",
-    state: "stopped",
-    port: 3000,
-    supportsPortSwitching: true,
-    logPath: "/private/logs/portdeck.log",
-    lastError: nil,
-    previousPort: nil
-  )
+@Test func commandPaletteBuildsProjectJumpActions() {
   let status = makePaletteStatus(groups: [
-    makePaletteProject(name: "PortDeck", services: [], savedProject: stopped)
+    makePaletteProject(name: "PortDeck", services: [])
   ])
 
   let actions = PortdeckCommandPalette.collect(
@@ -122,45 +113,9 @@ import Testing
     showLikelySystemListeners: false
   )
 
-  #expect(actions.containsAction(.startSavedProject, title: "Start PortDeck"))
-  #expect(actions.containsAction(.restartSavedProject, title: "Change PortDeck port"))
-  #expect(actions.containsAction(.openSavedProjectLog, title: "View PortDeck log"))
   #expect(actions.containsAction(.openFolder, title: "Open PortDeck repo folder"))
   #expect(actions.containsAction(.revealInFinder, title: "Reveal PortDeck repo in Finder"))
   #expect(!actions.contains { $0.kind == .stopProject })
-}
-
-@Test func commandPaletteDistinguishesOwnedAndExternallyRunningSavedProjects() {
-  let owned = SavedProjectStatus(
-    id: "owned",
-    state: "running",
-    port: 3000,
-    supportsPortSwitching: true,
-    logPath: nil,
-    lastError: nil,
-    previousPort: nil
-  )
-  let external = SavedProjectStatus(
-    id: "external",
-    state: "external",
-    port: 5173,
-    supportsPortSwitching: false,
-    logPath: nil,
-    lastError: nil,
-    previousPort: nil
-  )
-  let actions = PortdeckCommandPalette.collect(
-    status: makePaletteStatus(groups: [
-      makePaletteProject(name: "Owned", services: [], savedProject: owned),
-      makePaletteProject(name: "External", services: [], savedProject: external)
-    ]),
-    preferNamedURLs: false,
-    showLikelySystemListeners: false
-  )
-
-  #expect(actions.containsAction(.stopSavedProject, title: "Stop Owned"))
-  #expect(actions.containsAction(.restartSavedProject, title: "Restart External via PortDeck"))
-  #expect(!actions.containsAction(.stopSavedProject, title: "Stop External"))
 }
 
 @Test func commandPaletteUsesOnlyVisibleDashboardSourcesInConfiguredOrder() {
@@ -383,7 +338,7 @@ private func makePaletteStatus(
   unknown: [PortdeckService] = []
 ) -> PortdeckStatus {
   PortdeckStatus(
-    schemaVersion: "0.1",
+    schemaVersion: "0.2",
     generatedAt: "2026-06-09T12:00:00.000Z",
     groups: groups,
     unknown: unknown,
@@ -395,8 +350,7 @@ private func makePaletteProject(
   name: String,
   remoteUrl: String? = nil,
   repositoryUrl: String? = nil,
-  services: [PortdeckService],
-  savedProject: SavedProjectStatus? = nil
+  services: [PortdeckService]
 ) -> ProjectGroup {
   ProjectGroup(
     projectName: name,
@@ -412,8 +366,7 @@ private func makePaletteProject(
         repositoryUrl: repositoryUrl,
         services: services
       )
-    ],
-    savedProject: savedProject
+    ]
   )
 }
 

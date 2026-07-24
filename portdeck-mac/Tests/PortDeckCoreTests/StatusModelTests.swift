@@ -136,49 +136,6 @@ import Testing
   #expect(model.stopFailureMessage == nil)
 }
 
-@MainActor
-@Test func savedProjectStartSurfacesOccupiedPortSuggestionAndRefreshesStatus() async {
-  let saved = SavedProjectStatus(
-    id: "saved-portdeck",
-    state: "stopped",
-    port: 3000,
-    supportsPortSwitching: true,
-    logPath: nil,
-    lastError: nil,
-    previousPort: nil
-  )
-  let snapshot = LoadedPortdeckStatus(
-    status: modelTestStatus(generatedAt: "saved-project"),
-    rawJSON: "saved-project"
-  )
-  let result = SavedProjectRunResult(
-    ok: false,
-    projectId: saved.id,
-    action: "port-occupied",
-    message: "Port 3000 is already in use.",
-    state: "stopped",
-    port: 3000,
-    previousPort: 3000,
-    suggestedPort: 3001,
-    logPath: nil
-  )
-  let loader = FakeSavedProjectStatusLoader(snapshot: snapshot, startResult: result)
-  let model = StatusModel(userDefaults: isolatedLocalUserDefaults(), loader: loader)
-
-  await model.refresh()
-  model.requestStartProject(saved)
-  await waitForLocalModel {
-    let startCount = await loader.startCallCount
-    let loadCount = await loader.loadCallCount
-    return startCount == 1 && loadCount == 2
-  }
-
-  #expect(model.projectActionResult == result)
-  #expect(model.projectActionResult?.suggestedPort == 3001)
-  #expect(model.activeSavedProjectID == nil)
-  #expect(model.isManagingSavedProject == false)
-}
-
 @Test func localRefreshErrorsAreBoundedAndCredentialRedacted() {
   let raw = "Authorization: Bearer abcdefghijklmnopqrstuvwxyz " + String(repeating: "failure ", count: 100)
   let message = localStatusErrorMessage(raw, limit: 80)
@@ -229,32 +186,6 @@ private actor FakeLocalStatusLoader: PortdeckStatusLoading {
       return PortdeckStopResult(ok: true, serviceId: serviceId, action: "stopped", message: "Stopped")
     }
     return stopResults.removeFirst()
-  }
-}
-
-private actor FakeSavedProjectStatusLoader: PortdeckStatusLoading {
-  private let snapshot: LoadedPortdeckStatus
-  private let startResult: SavedProjectRunResult
-  private(set) var loadCallCount = 0
-  private(set) var startCallCount = 0
-
-  init(snapshot: LoadedPortdeckStatus, startResult: SavedProjectRunResult) {
-    self.snapshot = snapshot
-    self.startResult = startResult
-  }
-
-  func load() async throws -> LoadedPortdeckStatus {
-    loadCallCount += 1
-    return snapshot
-  }
-
-  func stopService(id serviceId: String) async throws -> PortdeckStopResult {
-    PortdeckStopResult(ok: true, serviceId: serviceId, action: "stopped", message: "Stopped")
-  }
-
-  func startProject(id projectId: String, port: Int?) async throws -> SavedProjectRunResult {
-    startCallCount += 1
-    return startResult
   }
 }
 
@@ -311,7 +242,7 @@ private func modelTestStatus(
   services: [PortdeckService] = []
 ) -> PortdeckStatus {
   PortdeckStatus(
-    schemaVersion: "1.0",
+    schemaVersion: "0.2",
     generatedAt: generatedAt,
     groups: services.isEmpty ? [] : [
       ProjectGroup(

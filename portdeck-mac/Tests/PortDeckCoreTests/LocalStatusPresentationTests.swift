@@ -97,29 +97,6 @@ import Testing
   #expect(overview.problemCount == 3)
 }
 
-@Test func localOverviewExcludesStoppedSavedProjects() {
-  let saved = SavedProjectStatus(
-    id: "saved-stopped",
-    state: "stopped",
-    port: 3000,
-    supportsPortSwitching: true,
-    logPath: nil,
-    lastError: nil,
-    previousPort: nil
-  )
-  let stoppedProject = localTestProject(name: "Stopped", services: [], savedProject: saved)
-  let runningProject = localTestProject(
-    name: "Running",
-    services: [localTestService(id: "running", name: "web", port: 3001)]
-  )
-  let status = localTestStatus(groups: [stoppedProject, runningProject])
-
-  let overview = LocalStatusPresentation.overview(for: status, showLikelySystemListeners: false)
-
-  #expect(overview.projectCount == 1)
-  #expect(overview.serviceCount == 1)
-}
-
 @Test func ordersProblemsBySeverityAndFiltersUnrelatedConflicts() {
   let errorConflict = localTestConflict(port: 3000, severity: "error", title: "API collision", project: "PortDeck")
   let warningConflict = localTestConflict(port: 4000, severity: "warning", title: "Preview collision", project: "Preview")
@@ -228,26 +205,6 @@ import Testing
   #expect(stabilized.unknown.map(\.id) == ["unknown-a", "unknown-b"])
 }
 
-@Test func stabilizationPreservesCurrentSavedProjectMetadata() throws {
-  let previous = localTestStatus(groups: [localTestProject(name: "PortDeck", services: [])])
-  let saved = SavedProjectStatus(
-    id: "saved-portdeck",
-    state: "stopped",
-    port: 3000,
-    supportsPortSwitching: true,
-    logPath: "/tmp/portdeck.log",
-    lastError: nil,
-    previousPort: nil
-  )
-  let incoming = localTestStatus(groups: [
-    localTestProject(name: "PortDeck", services: [], savedProject: saved)
-  ])
-
-  let stabilized = LocalStatusPresentation.stabilized(incoming, preserving: previous)
-
-  #expect(try #require(stabilized.groups.first?.savedProject) == saved)
-}
-
 @Test func omitsMissingMetadataAndBuildsSpecificAccessibilityLabels() {
   let emptyWorktree = WorktreeGroup(name: "PortDeck", path: "/repo", branch: nil, services: [])
   #expect(LocalStatusPresentation.worktreeMetadata(
@@ -304,7 +261,7 @@ private func localTestStatus(
   exposures: [PortdeckExposure]? = nil
 ) -> PortdeckStatus {
   PortdeckStatus(
-    schemaVersion: "1.0",
+    schemaVersion: "0.2",
     generatedAt: "2026-07-17T12:00:00Z",
     groups: groups,
     unknown: unknown,
@@ -316,16 +273,14 @@ private func localTestStatus(
 
 private func localTestProject(
   name: String,
-  services: [PortdeckService],
-  savedProject: SavedProjectStatus? = nil
+  services: [PortdeckService]
 ) -> ProjectGroup {
   ProjectGroup(
     projectName: name,
     repoRoot: "/repos/\(name)",
     worktrees: [
       WorktreeGroup(name: "main", path: "/repos/\(name)", branch: "main", services: services)
-    ],
-    savedProject: savedProject
+    ]
   )
 }
 

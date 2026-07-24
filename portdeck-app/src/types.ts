@@ -187,23 +187,10 @@ export type ProjectGroup = {
   remoteUrl?: string;
   repositoryUrl?: string;
   worktrees: WorktreeGroup[];
-  savedProject?: SavedProjectStatus;
-};
-
-export type SavedProjectState = "stopped" | "starting" | "running" | "external" | "failed";
-
-export type SavedProjectStatus = {
-  id: string;
-  state: SavedProjectState;
-  port?: number;
-  supportsPortSwitching: boolean;
-  logPath?: string;
-  lastError?: string;
-  previousPort?: number;
 };
 
 export type PortdeckStatus = {
-  schemaVersion: "0.1";
+  schemaVersion: "0.2";
   generatedAt: string;
   groups: ProjectGroup[];
   unknown: PortdeckService[];

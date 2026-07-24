@@ -214,7 +214,7 @@ export async function buildStatus(input: BuildStatusInput): Promise<PortdeckStat
   const portConflicts = await buildPortConflicts(localhostCollisionContexts, input.probeEndpoints, warnings);
 
   return {
-    schemaVersion: "0.1",
+    schemaVersion: "0.2",
     generatedAt: input.generatedAt,
     groups: sortGroups(
       Array.from(groups.values()).map((group) => ({

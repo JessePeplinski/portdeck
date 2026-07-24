@@ -82,7 +82,7 @@ private func decodedStatus(
   }
   let json = """
   {
-    "schemaVersion": "0.1",
+    "schemaVersion": "0.2",
     "generatedAt": "2026-07-10T12:00:00Z",
     "groups": [{
       "projectName": \(jsonString(projectName)),
