@@ -171,9 +171,17 @@ final_sha256="$(/usr/bin/shasum -a 256 "$final_zip" | /usr/bin/awk '{print $1}')
 
 "$script_root/verify-release-app.sh" --production-zip "$final_zip" "$checksum_file"
 
+PORTDECK_SIGNING_IDENTITY="$signing_identity" \
+  PORTDECK_NOTARYTOOL_PROFILE="$notary_profile" \
+  PORTDECK_RELEASE_ICON="$release_icon" \
+  PORTDECK_RELEASE_ICON_SHA256="$approved_icon_sha256" \
+  "$script_root/build-github-dmg-release.sh" "$final_app"
+
 echo "Built signed and notarized PortDeck GitHub prerelease assets:"
 echo "$final_zip"
 echo "$checksum_file"
+echo "$artifact_root/$release_dmg"
+echo "$artifact_root/$release_dmg_checksum_asset"
 echo "SHA-256: $final_sha256"
 echo "Node.js archive: $node_url"
 echo "Node.js archive SHA-256: $node_sha256"

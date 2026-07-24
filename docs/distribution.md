@@ -1,15 +1,17 @@
 # PortDeck Distribution
 
-PortDeck's first public distribution target is a Developer ID-signed and notarized arm64 app distributed as a versioned ZIP through GitHub Releases and the `portdeck@beta` Homebrew cask. The Mac App Store remains a separate feasibility track.
+PortDeck's public beta is a Developer ID-signed and notarized arm64 app distributed through a drag-to-Applications DMG, a versioned ZIP, and the `portdeck@beta` Homebrew cask. The Mac App Store remains a separate feasibility track.
 
 ## Current target
 
-The current public beta is `v0.1.0-beta.4` for Apple Silicon Macs running macOS 14 or newer:
+The current public beta is `v0.1.0-beta.5` for Apple Silicon Macs running macOS 14 or newer:
 
-- [`PortDeck-0.1.0-beta.4-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.4/PortDeck-0.1.0-beta.4-macos-arm64.zip)
-- [`PortDeck-0.1.0-beta.4-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.4/PortDeck-0.1.0-beta.4-macos-arm64.zip.sha256)
+- [`PortDeck-0.1.0-beta.5-macos-arm64.dmg`](../../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.dmg)
+- [`PortDeck-0.1.0-beta.5-macos-arm64.dmg.sha256`](../../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.dmg.sha256)
+- [`PortDeck-0.1.0-beta.5-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.zip)
+- [`PortDeck-0.1.0-beta.5-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.zip.sha256)
 
-A DMG, universal/x86_64 build, in-app updater, and App Store package are outside the current beta contract.
+A universal/x86_64 build, in-app updater, and App Store package are outside the current beta contract.
 
 ## Bundle boundary
 
@@ -20,12 +22,13 @@ The direct-download app contains only:
 - Node.js 24.18.0 arm64 for that helper;
 - the approved icon, `Info.plist`, code-signing resources, and required licenses/notices.
 
-Provider CLIs are external dependencies. The app and ZIP must not contain `ProviderRuntimes`, a provider `node_modules` tree, provider wrappers, provider credentials, or provider authentication state. This removes the largest part of the previous bundle while preserving the self-contained Local/Projects workflow.
+Provider CLIs are external dependencies. The app, ZIP, and DMG must not contain `ProviderRuntimes`, a provider `node_modules` tree, provider wrappers, provider credentials, or provider authentication state. This removes the largest part of the previous bundle while preserving the self-contained Local/Projects workflow.
 
 The release limits are hard gates:
 
 - installed `PortDeck.app`: at most 110 MiB (`112640` KiB);
 - production ZIP: at most `45,000,000` bytes;
+- production DMG: at most `55,000,000` bytes;
 - local candidate: at most nine regular files;
 - production app: exactly the ten expected regular files, including Apple's stapled notarization ticket.
 
@@ -44,9 +47,11 @@ The app is written to `portdeck-mac/.build/release-artifacts/PortDeck.app`; debu
 
 The candidate is intentionally not a public artifact. It has no production icon, Developer ID signature, secure timestamp, notarization ticket, or Gatekeeper acceptance. Verification copies it outside the checkout, uses isolated home/state directories and a scrubbed `PATH`, runs the Local/Projects status/save/start/restart/port-switch/stop lifecycle, checks signatures and entitlements, asserts that provider CLIs are absent, and enforces the app/file-count budgets.
 
-## Production GitHub ZIP workflow
+## Production GitHub release workflow
 
-`npm run preflight:mac:github-release` checks the approved icon, Developer ID Application identity, and notarytool profile. It does not sign or upload an artifact.
+Install [`create-dmg`](https://github.com/create-dmg/create-dmg) with `brew install create-dmg`. PortDeck uses it only to create the Finder window and `/Applications` drop link; the repository's release scripts own signing, notarization, checksums, and verification.
+
+`npm run preflight:mac:github-release` checks the approved icon, packaging tools, Developer ID Application identity, and notarytool profile. It does not sign or upload an artifact.
 
 After explicit approval to use signing credentials and upload to Apple:
 
@@ -59,9 +64,10 @@ The guarded workflow:
 1. Builds and verifies the local arm64 candidate.
 2. Adds the approved icon and release metadata.
 3. Signs each nested Mach-O before signing the outer app; it never uses `codesign --deep` for signing.
-4. Submits a temporary ZIP to Apple, requires an accepted zero-issue notarization log, and staples the ticket.
+4. Submits a temporary ZIP to Apple, requires an accepted zero-issue notarization log, and staples the app ticket.
 5. Creates the final ZIP and SHA-256 sidecar under the ignored `portdeck-mac/.build/github-release-artifacts` directory.
-6. Extracts the ZIP outside the checkout under simulated quarantine and reruns the full production verifier.
+6. Creates the DMG with `PortDeck.app` and an `/Applications` drop link, signs the disk image, submits the DMG separately to Apple, requires an accepted zero-issue log, and staples the DMG ticket.
+7. Extracts the ZIP and mounts the DMG outside the checkout under simulated quarantine. The DMG verifier copies out its app and reruns the complete production app lifecycle verifier.
 
 The Node runtime is exactly 24.18.0 from the pinned official arm64 archive and SHA-256 in `release-config.sh`. No provider downloads occur during build or application runtime.
 
@@ -86,6 +92,15 @@ Do not run the guarded signing/notarization workflow, create a tag, publish a Gi
 - no builder paths, credentials, auth stores, `.env` files, or escaping symlinks;
 - self-contained Local/Projects lifecycle behavior with no system Node dependency;
 - successful LaunchServices startup of the quarantined app.
+
+`verify-release-app.sh --production-dmg <dmg> <sha256>` additionally requires:
+
+- the expected DMG/checksum names and digest;
+- a DMG at or below `55,000,000` bytes;
+- a valid Developer ID signature, secure timestamp, disk-image structure, and stapled notarization ticket;
+- exactly `PortDeck.app` and an `/Applications` symlink as visible Finder contents;
+- the Applications link to resolve exactly to `/Applications`;
+- the app copied out of the quarantined DMG to pass the complete production ZIP verifier above.
 
 Provider behavior is verified in Swift tests with injected executable paths and fake command runners. The release verifier asserts provider executables and dependency trees are absent rather than contacting or mutating real provider accounts.
 
@@ -124,7 +139,7 @@ Users install the public beta with:
 brew install --cask JessePeplinski/tap/portdeck@beta
 ```
 
-The cask in [`JessePeplinski/homebrew-tap`](https://github.com/JessePeplinski/homebrew-tap) installs the exact signed and notarized GitHub ZIP; it is not a separate build. After an approved GitHub Release passes downloaded-artifact verification, the tap workflow may be dispatched for that exact version. Never point the cask at an unpublished asset or use `sha256 :no_check`.
+The cask in [`JessePeplinski/homebrew-tap`](https://github.com/JessePeplinski/homebrew-tap) installs the exact signed and notarized GitHub ZIP; it is not a separate build. Manual installation uses the DMG and its drag-to-Applications layout. After an approved GitHub Release passes downloaded-artifact verification, the tap workflow may be dispatched for that exact version. Never point the cask at an unpublished asset or use `sha256 :no_check`.
 
 ## App Store boundary
 
