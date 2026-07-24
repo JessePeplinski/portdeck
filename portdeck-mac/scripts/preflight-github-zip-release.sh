@@ -17,7 +17,7 @@ block() {
   blockers=$((blockers + 1))
 }
 
-for tool in codesign curl file iconutil lipo npm plutil security shasum spctl swift xattr; do
+for tool in codesign create-dmg curl file hdiutil iconutil lipo npm plutil security shasum spctl swift xattr; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     block "required tool is unavailable: $tool"
   fi
@@ -27,6 +27,15 @@ for xcode_tool in notarytool stapler; do
     block "required Xcode tool is unavailable: $xcode_tool"
   fi
 done
+
+if command -v create-dmg >/dev/null 2>&1; then
+  actual_create_dmg_version="$(create-dmg --version 2>/dev/null | /usr/bin/awk 'NR == 1 {print $2}')"
+  if [[ "$actual_create_dmg_version" != "$create_dmg_version" ]]; then
+    block "create-dmg ${create_dmg_version} is required; found ${actual_create_dmg_version:-unknown}"
+  else
+    echo "OK: create-dmg ${create_dmg_version}"
+  fi
+fi
 
 if [[ "$approved_icon_sha256" != "$approved_release_icon_sha256" ]]; then
   block "PORTDECK_RELEASE_ICON_SHA256 does not match the pinned approved production icon"
@@ -78,8 +87,8 @@ if [[ "$release_tag" != "v${release_version}" ]]; then
 fi
 
 if [[ "$blockers" -ne 0 ]]; then
-  printf 'PortDeck GitHub ZIP release preflight found %d blocker(s).\n' "$blockers" >&2
+  printf 'PortDeck direct-download release preflight found %d blocker(s).\n' "$blockers" >&2
   exit 1
 fi
 
-echo "PortDeck GitHub ZIP release preflight passed for ${release_tag}."
+echo "PortDeck direct-download release preflight passed for ${release_tag}."

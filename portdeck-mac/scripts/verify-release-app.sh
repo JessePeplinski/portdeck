@@ -6,6 +6,11 @@ if [[ "${1:-}" == "--production-zip" ]]; then
   exec "$(cd "$(dirname "$0")" && pwd)/verify-github-zip-release.sh" "$@"
 fi
 
+if [[ "${1:-}" == "--production-dmg" ]]; then
+  shift
+  exec "$(cd "$(dirname "$0")" && pwd)/verify-github-dmg-release.sh" "$@"
+fi
+
 package_root="$(cd "$(dirname "$0")/.." && pwd)"
 repo_root="$(cd "$package_root/.." && pwd)"
 app_bundle="${1:-$package_root/.build/release-artifacts/PortDeck.app}"

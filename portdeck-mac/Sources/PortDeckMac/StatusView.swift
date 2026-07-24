@@ -2,6 +2,25 @@ import AppKit
 import PortDeckCore
 import SwiftUI
 
+enum FooterAttribution {
+  static let jesseName = "Jesse Peplinski"
+  static let studioName = "Pep Tech Studios"
+  static let jesseURL = URL(string: "https://jessepeplinski.com")!
+  static let studioURL = URL(string: "https://peptechstudios.com")!
+  static let xURL = URL(string: "https://x.com/jessepeplinski")!
+  static let twitchURL = URL(string: "https://www.twitch.tv/peptechdev")!
+  static let xIconSVG = """
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+    </svg>
+    """
+  static let twitchIconSVG = """
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <path d="M4.265 0 1.02 3.245v17.51h5.84V24l3.245-3.245h4.87L21.47 14.26V0zm15.908 13.61-3.245 3.245h-5.84l-2.596 2.596v-2.596H4.265V1.298h15.908zM15.627 4.543h1.298v6.49h-1.298zm-4.87 0h1.298v6.49h-1.298z"/>
+    </svg>
+    """
+}
+
 struct StatusView: View {
   @ObservedObject var model: StatusModel
   @ObservedObject var vercelModel: VercelStatusModel
@@ -536,52 +555,85 @@ struct StatusView: View {
   }
 
   private var footer: some View {
-    HStack(spacing: 8) {
-      Button {
-        refreshSelectedSource()
-      } label: {
-        Label("Refresh", systemImage: "arrow.clockwise")
-      }
-      .keyboardShortcut("r")
-      .disabled(!selectedSourceSupportsRefresh)
-
-      if !isProjectsSelected, selectedSource == .local {
-        Menu {
-          Button {
-            model.copyJSON()
-          } label: {
-            Label("Copy status JSON", systemImage: "doc.on.doc")
-          }
-          .disabled(model.rawJSON.isEmpty)
-
-          Button {
-            model.showLikelySystemListeners.toggle()
-          } label: {
-            Label(
-              model.showLikelySystemListeners ? "Hide likely system listeners" : "Show likely system listeners",
-              systemImage: "desktopcomputer"
-            )
-          }
+    VStack(spacing: 8) {
+      HStack(spacing: 8) {
+        Button {
+          refreshSelectedSource()
         } label: {
-          Label("Diagnostics", systemImage: "wrench.and.screwdriver")
+          Label("Refresh", systemImage: "arrow.clockwise")
         }
-      }
+        .keyboardShortcut("r")
+        .disabled(!selectedSourceSupportsRefresh)
+
+        if !isProjectsSelected, selectedSource == .local {
+          Menu {
+            Button {
+              model.copyJSON()
+            } label: {
+              Label("Copy status JSON", systemImage: "doc.on.doc")
+            }
+            .disabled(model.rawJSON.isEmpty)
+
+            Button {
+              model.showLikelySystemListeners.toggle()
+            } label: {
+              Label(
+                model.showLikelySystemListeners ? "Hide likely system listeners" : "Show likely system listeners",
+                systemImage: "desktopcomputer"
+              )
+            }
+          } label: {
+            Label("Diagnostics", systemImage: "wrench.and.screwdriver")
+          }
+        }
 
 #if !APP_STORE
-      Button {
-        openDonationPage()
-      } label: {
-        Label("Donate", systemImage: "heart.fill")
-      }
-      .help("Open Buy Me a Coffee")
+        Button {
+          openDonationPage()
+        } label: {
+          Label("Donate", systemImage: "heart.fill")
+        }
+        .help("Open Buy Me a Coffee")
 #endif
 
-      Spacer()
+        Spacer()
 
-      Button("Quit") {
-        NSApplication.shared.terminate(nil)
+        Button("Quit") {
+          NSApplication.shared.terminate(nil)
+        }
+        .keyboardShortcut("q")
       }
-      .keyboardShortcut("q")
+
+      Divider()
+
+      HStack(spacing: 3) {
+        Text("Built by")
+
+        Link(FooterAttribution.jesseName, destination: FooterAttribution.jesseURL)
+        Text("/")
+        Link(FooterAttribution.studioName, destination: FooterAttribution.studioURL)
+
+        Spacer()
+
+        FooterAttributionLink(
+          title: "Jesse Peplinski’s website",
+          systemImage: "globe",
+          destination: FooterAttribution.jesseURL
+        )
+        FooterAttributionLink(
+          title: "Jesse Peplinski on X",
+          iconSVG: FooterAttribution.xIconSVG,
+          destination: FooterAttribution.xURL
+        )
+        FooterAttributionLink(
+          title: "Pep Tech on Twitch",
+          iconSVG: FooterAttribution.twitchIconSVG,
+          destination: FooterAttribution.twitchURL
+        )
+      }
+      .font(.caption2)
+      .foregroundStyle(.secondary)
+      .tint(.secondary)
     }
     .padding(12)
   }
@@ -1276,6 +1328,40 @@ struct StatusView: View {
       worktree.remoteUrl,
       worktree.repositoryUrl
     ].compactMap { $0 }
+  }
+}
+
+private struct FooterAttributionLink: View {
+  let title: String
+  var systemImage: String?
+  var iconSVG: String?
+  let destination: URL
+
+  var body: some View {
+    Link(destination: destination) {
+      Group {
+        if let systemImage {
+          Image(systemName: systemImage)
+        } else if let iconSVG, let icon = svgImage(iconSVG) {
+          Image(nsImage: icon)
+            .resizable()
+            .scaledToFit()
+        }
+      }
+      .frame(width: 15, height: 15)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .help(title)
+    .accessibilityLabel(title)
+  }
+
+  private func svgImage(_ source: String) -> NSImage? {
+    guard let image = NSImage(data: Data(source.utf8)) else {
+      return nil
+    }
+    image.isTemplate = true
+    return image
   }
 }
 

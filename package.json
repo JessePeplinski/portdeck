@@ -20,6 +20,7 @@
     "typecheck:app": "npm run typecheck -w portdeck-app",
     "verify": "npm run build && npm run test",
     "verify:mac:github-release": "portdeck-mac/scripts/verify-release-app.sh --production-zip",
+    "verify:mac:github-dmg-release": "portdeck-mac/scripts/verify-release-app.sh --production-dmg",
     "preflight:mac:github-release": "portdeck-mac/scripts/preflight-github-zip-release.sh",
     "verify:mac:release": "portdeck-mac/scripts/verify-release-app.sh"
   },

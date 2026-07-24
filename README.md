@@ -3,7 +3,7 @@
 PortDeck is a native macOS menu-bar command center for local development services, saved projects, and read-only deployment-provider health.
 
 > [!IMPORTANT]
-> PortDeck is in pre-release development. `v0.1.0-beta.4` is the current signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production ZIP artifacts remain separate workflows.
+> PortDeck is in pre-release development. `v0.1.0-beta.5` is the current signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production direct-download artifacts remain separate workflows.
 
 ## What PortDeck does
 
@@ -23,20 +23,19 @@ brew install --cask JessePeplinski/tap/portdeck@beta
 open -a PortDeck
 ```
 
-Homebrew installs the same signed and notarized app published on GitHub. The versioned release paths remain available for manual installation:
+Homebrew installs the same signed and notarized app published on GitHub. For a manual installation, download the DMG, open it, and drag PortDeck into Applications:
 
-- [`PortDeck-0.1.0-beta.4-macos-arm64.zip`](../../releases/download/v0.1.0-beta.4/PortDeck-0.1.0-beta.4-macos-arm64.zip)
-- [`PortDeck-0.1.0-beta.4-macos-arm64.zip.sha256`](../../releases/download/v0.1.0-beta.4/PortDeck-0.1.0-beta.4-macos-arm64.zip.sha256)
+- [`PortDeck-0.1.0-beta.5-macos-arm64.dmg`](../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.dmg)
+- [`PortDeck-0.1.0-beta.5-macos-arm64.dmg.sha256`](../../releases/download/v0.1.0-beta.5/PortDeck-0.1.0-beta.5-macos-arm64.dmg.sha256)
 
-Download both files into the same directory, then verify and extract them:
+Download both files into the same directory, verify the disk image, then open it:
 
 ```bash
-shasum -a 256 -c PortDeck-0.1.0-beta.4-macos-arm64.zip.sha256
-ditto -x -k PortDeck-0.1.0-beta.4-macos-arm64.zip .
-open PortDeck.app
+shasum -a 256 -c PortDeck-0.1.0-beta.5-macos-arm64.dmg.sha256
+open PortDeck-0.1.0-beta.5-macos-arm64.dmg
 ```
 
-The release is a Developer ID-signed, Apple-notarized ZIP. PortDeck does not use App Sandbox in the direct-download build because local process, port, Git, Docker, external provider CLI, and saved-project controls require the separately verified direct-download boundary.
+The versioned ZIP and checksum remain on the GitHub Release for Homebrew and fallback installs. Both containers hold the same Developer ID-signed, Apple-notarized app. PortDeck does not use App Sandbox in the direct-download build because local process, port, Git, Docker, external provider CLI, and saved-project controls require the separately verified direct-download boundary.
 
 Provider tabs stay available even when their CLI is missing. PortDeck shows the exact install command, official documentation, and a Refresh action; it never installs or upgrades provider CLIs automatically. The current supported ranges are:
 
@@ -102,7 +101,7 @@ The static marketing site is maintained independently in [`portdeck-site`](https
 
 See [`docs/architecture.md`](docs/architecture.md) for the detailed provider allowlists and failure behavior.
 
-## Production ZIP release pipeline
+## Production direct-download release pipeline
 
 The production pipeline is deliberately separate from `build:mac`, `run-dev-app.sh`, the sandbox probe, and the local ad-hoc candidate. It:
 
@@ -111,11 +110,12 @@ The production pipeline is deliberately separate from `build:mac`, `run-dev-app.
 3. Excludes every provider CLI and provider dependency tree from the bundle.
 4. Signs every nested Mach-O individually with hardened runtime and secure timestamps, then signs the outer app without App Sandbox.
 5. Notarizes a temporary ZIP, inspects the accepted log, staples the ticket to `PortDeck.app`, and creates the final ZIP with `ditto -c -k --keepParent`.
-6. Verifies the final ZIP outside the repository under simulated quarantine, isolated state and home directories, and a scrubbed `PATH`, with hard limits of 110 MiB installed and 45,000,000 ZIP bytes.
+6. Creates a drag-to-Applications DMG with `create-dmg`, signs and separately notarizes the disk image, then staples the DMG ticket.
+7. Verifies the final ZIP and DMG outside the repository under simulated quarantine, isolated state and home directories, and a scrubbed `PATH`, with hard limits of 110 MiB installed, 45,000,000 ZIP bytes, and 55,000,000 DMG bytes.
 
-Run the release preflight with `npm run preflight:mac:github-release`. It checks local signing metadata and validates the selected notarytool profile with a silent, read-only Apple Notary history request when the profile is not visible through the legacy Keychain lookup; it never uploads an artifact. The signing-and-notarization build is additionally guarded by `PORTDECK_APPROVE_SIGNING_AND_NOTARIZATION=YES` and must not run until the release owner explicitly approves signing and the Apple upload. See [`docs/distribution.md`](docs/distribution.md) for the complete commands, fixed inputs, and verification contract.
+Install the Finder-layout dependency with `brew install create-dmg`, then run the release preflight with `npm run preflight:mac:github-release`. It checks the packaging tools, local signing metadata, and selected notarytool profile with a silent, read-only Apple Notary history request when the profile is not visible through the legacy Keychain lookup; it never uploads an artifact. The signing-and-notarization build is additionally guarded by `PORTDECK_APPROVE_SIGNING_AND_NOTARIZATION=YES` and must not run until the release owner explicitly approves signing and the Apple uploads. See [`docs/distribution.md`](docs/distribution.md) for the complete commands, fixed inputs, and verification contract.
 
-Homebrew installations update through `brew upgrade --cask JessePeplinski/tap/portdeck@beta`; manual installations update from the latest GitHub Release. A DMG, universal/x86_64 package, in-app updater, and App Store package are not part of this beta.
+Homebrew installations update through `brew upgrade --cask JessePeplinski/tap/portdeck@beta`; manual installations use the latest GitHub Release DMG, with the ZIP retained for Homebrew and as a fallback. A universal/x86_64 package, in-app updater, and App Store package are not part of this beta.
 
 ## Contributing
 
