@@ -6,6 +6,8 @@
   <string>PortDeck</string>
   <key>CFBundleExecutable</key>
   <string>PortDeckMac</string>
+  <key>CFBundleIconFile</key>
+  <string>PortDeck.icns</string>
   <key>CFBundleIdentifier</key>
   <string>app.portdeck.dev</string>
   <key>CFBundleName</key>
