@@ -193,7 +193,7 @@ Docker attribution:
 
 Git repository metadata:
 
-- `remoteUrl` and `repositoryUrl` are optional and additive under schema `"0.1"`.
+- `remoteUrl` and `repositoryUrl` were introduced as optional additive fields in schema `"0.1"` and remain available in `"0.2"`.
 - PortDeck reads `git remote get-url origin` quietly for Git-owned worktrees.
 - Supported GitHub origin forms include `https://github.com/<owner>/<repo>.git`, `git@github.com:<owner>/<repo>.git`, and `ssh://git@github.com/<owner>/<repo>.git`.
 - `repositoryUrl` normalizes supported origins to `https://github.com/<owner>/<repo>` and removes a trailing `.git`.

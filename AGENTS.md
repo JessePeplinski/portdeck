@@ -16,8 +16,8 @@ If code and documentation disagree, stop and reconcile the conflict instead of s
 
 ## Repository ownership boundaries
 
-- `portdeck-app` owns process, port, Git worktree, and Docker discovery; the versioned private saved-project store; command suggestions; process-group ownership; start, stop, restart, and port-switching behavior; and `portdeck status --json` compatibility.
-- `portdeck-mac` renders those contracts and invokes the helper. It must not reimplement discovery, infer shell commands, send its own process signals, or create a second saved-project store.
+- `portdeck-app` owns process, port, Git worktree, and Docker discovery; confirmed service-stop behavior; and `portdeck status --json` compatibility.
+- `portdeck-mac` renders those contracts and invokes the helper. It must not reimplement discovery or send its own process signals.
 - Provider adapters are read-only. They may decode only fields PortDeck renders and must not deploy, restart, cancel, retry, configure, scale, link, delete, read secrets or application data, mutate CLI context, or change credentials.
 - Monitored projects are read-only inputs. Never modify their manifests, lockfiles, environment files, provider configuration, or installed dependencies.
 - Environment-variable executable overrides are development and test hooks. Invalid authoritative overrides must fail rather than silently falling through to a different runtime.
@@ -39,7 +39,7 @@ If code and documentation disagree, stop and reconcile the conflict instead of s
 Match verification to the change:
 
 - Markdown-only changes: verify links and commands, confirm intended text is present and stale text is gone, then run `git diff --check`.
-- Local discovery, saved-project behavior, status JSON, provider parsing, runtime resolution, authentication handling, or shared logic: add or update focused tests and run the smallest relevant suite plus `npm run verify` before handoff.
+- Local discovery, confirmed stop behavior, status JSON, provider parsing, runtime resolution, authentication handling, or shared logic: add or update focused tests and run the smallest relevant suite plus `npm run verify` before handoff.
 - User-visible Mac changes: run relevant tests, launch the real app through the established script, and review the affected menu-bar state. Do not claim native visual coverage that was not actually performed.
 - Distribution, signing, notarization, release, or external-state changes: follow the complete release gates below and verify the downloaded artifact, not merely a source build.
 
@@ -51,21 +51,21 @@ Keep these artifacts distinct:
 - `portdeck-mac/scripts/build-sandbox-probe-app.sh` creates an ad-hoc or development-signed hardened-runtime sandbox feasibility probe. It is not a direct-download artifact, App Store archive, or notarized release.
 - The public ZIP and DMG must contain the same separately assembled, Developer ID-signed release app. Never rename or repackage either development artifact and call it release-ready.
 
-The first direct-download build is an arm64, macOS 14+ beta. Universal packaging is a later compatibility slice. The direct-download build uses hardened runtime without App Sandbox unless local discovery, Docker inspection, saved-project launch/stop, credential access, and every bundled runtime are separately proven under sandboxing. `portdeck-mac/Config/PortDeck.entitlements` currently belongs to the sandbox probe and must not be assumed to be the release entitlement set.
+The first direct-download build is an arm64, macOS 14+ beta. Universal packaging is a later compatibility slice. The direct-download build uses hardened runtime without App Sandbox unless local discovery, Docker inspection, confirmed service stops, credential access, and every bundled runtime are separately proven under sandboxing. `portdeck-mac/Config/PortDeck.entitlements` currently belongs to the sandbox probe and must not be assumed to be the release entitlement set.
 
 ## Direct-download release gates
 
 Do not publish or describe a build as download-ready until every gate passes:
 
 1. Build a clean arm64 release `PortDeck.app` with a real app icon. Keep `CFBundleShortVersionString` and the monotonically increasing `CFBundleVersion` numeric, and require the separate release-version and release-tag metadata to match the GitHub prerelease.
-2. Bundle the PortDeck discovery helper and the checksum-pinned Node runtime used by Local/Projects. Provider CLIs remain external dependencies resolved from the user's environment; never package provider runtimes, wrappers, credentials, authentication state, or dependency trees.
+2. Bundle the PortDeck discovery helper and the checksum-pinned Node runtime used by Local. Provider CLIs remain external dependencies resolved from the user's environment; never package provider runtimes, wrappers, credentials, authentication state, or dependency trees.
 3. Treat Vercel and GitHub as optional external integrations backed by the user's installed, authenticated official `vercel` and `gh` CLIs. Missing or expired sessions must produce explicit unavailable or degraded states without breaking the app.
 4. Audit every redistributed dependency and include the required third-party license and notice material in the app or DMG.
 5. Use a Developer ID Application identity, hardened runtime, secure timestamps, and the minimal direct-download entitlements. Remove development-only entitlements such as `com.apple.security.get-task-allow`.
 6. Sign every nested Mach-O executable and code bundle individually from the inside out, then sign `PortDeck.app`. Never use `codesign --deep` to perform signing; it is acceptable only for verification where appropriate.
 7. Submit a temporary ZIP containing the signed app with `xcrun notarytool`, wait for acceptance, inspect the notary log, staple the ticket to `PortDeck.app`, and validate the stapled app.
 8. Create the final ZIP with `/usr/bin/ditto -c -k --keepParent`, then create a signed and separately notarized DMG containing only `PortDeck.app` and an `/Applications` drop link. Verify both containers with `codesign`, `spctl`, `hdiutil`, and `xcrun stapler validate`. Extract or mount each artifact as a quarantined user download and launch the copied app with no source checkout, PortDeck CLI, or separate Node installation.
-9. Smoke-test local discovery, saved-project start/stop/port switching, external provider CLI resolution, and graceful missing, unsupported, or expired authentication states. Confirm no provider executable, provider dependency tree, credentials, user paths, provider tokens, or monitored-project files entered the bundle.
+9. Smoke-test local discovery, confirmed service stops, external provider CLI resolution, and graceful missing, unsupported, or expired authentication states. Confirm no provider executable, provider dependency tree, credentials, user paths, provider tokens, or monitored-project files entered the bundle.
 10. Publish manually as a versioned GitHub Release only after explicit approval. The first update path is the latest GitHub Release; do not add or claim an in-app updater until it is separately implemented and verified.
 11. After the downloaded GitHub artifact passes the complete production verifier, dispatch the `Update PortDeck cask` workflow in `JessePeplinski/homebrew-tap` for the exact release version. Require a successful workflow, confirm the cask commit reached `main`, and smoke-test a clean public `brew install --cask JessePeplinski/tap/portdeck@beta` before calling the release handoff complete.
 
@@ -73,7 +73,7 @@ Ask before certificate or notarization setup, notarization uploads, tags, pushes
 
 ## Secrets and public-repository hygiene
 
-- Never commit signing certificates, private keys, provisioning profiles, notarization credentials, keychain exports, API tokens, `.env` files, auth stores, raw command logs, saved-project profiles, or user data.
+- Never commit signing certificates, private keys, provisioning profiles, notarization credentials, keychain exports, API tokens, `.env` files, auth stores, raw command logs, or user data.
 - Keep signing and notarization credentials in the macOS Keychain or another approved secret store. Do not place secret values directly in scripts, command history, documentation, or GitHub Actions files.
 - Public documentation must not contain personal filesystem paths, certificate fingerprints, Apple team identifiers, private repository details, or screenshots containing account or project data.
 - Stage intentionally and review the complete diff for secrets and generated artifacts before any commit.
