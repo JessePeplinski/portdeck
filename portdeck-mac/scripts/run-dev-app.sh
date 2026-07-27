@@ -13,6 +13,9 @@ rm -rf "$app_bundle"
 mkdir -p "$app_bundle/Contents/MacOS" "$app_bundle/Contents/Resources"
 cp "$executable" "$app_bundle/Contents/MacOS/PortDeckMac"
 cp "$info_plist" "$app_bundle/Contents/Info.plist"
+/usr/libexec/PlistBuddy \
+  -c "Set :CFBundleIdentifier app.portdeck.dev.development" \
+  "$app_bundle/Contents/Info.plist"
 cp "Resources/PortDeck.icns" "$app_bundle/Contents/Resources/PortDeck.icns"
 touch "$app_bundle/Contents/Resources/.portdeck-source-development"
 
