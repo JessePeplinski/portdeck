@@ -65,8 +65,8 @@ final class LaunchAtLoginModel: ObservableObject {
     status == .requiresApproval
   }
 
-  var isAvailable: Bool {
-    status != .notFound
+  var requiresManualSetup: Bool {
+    status == .notFound
   }
 
   func refresh() {
@@ -78,7 +78,7 @@ final class LaunchAtLoginModel: ObservableObject {
 
     do {
       if enabled {
-        if status == .requiresApproval {
+        if status == .requiresApproval || status == .notFound {
           service.openSystemSettings()
         } else if status != .enabled {
           try service.register()

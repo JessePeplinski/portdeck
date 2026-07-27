@@ -8,29 +8,40 @@ struct SettingsView: View {
   var body: some View {
     Form {
       Section("General") {
-        Toggle(
-          "Launch PortDeck at login",
-          isOn: Binding(
-            get: { launchAtLoginModel.isEnabled },
-            set: { enabled in
-              launchAtLoginModel.setEnabled(enabled)
-            }
-          )
-        )
-        .disabled(!launchAtLoginModel.isAvailable)
+        if launchAtLoginModel.requiresManualSetup {
+          HStack {
+            Text("Launch PortDeck at login")
 
-        Text("Open PortDeck automatically when you log in to this Mac.")
+            Spacer()
+
+            Button("Open Login Items…") {
+              launchAtLoginModel.setEnabled(true)
+            }
+          }
+        } else {
+          Toggle(
+            "Launch PortDeck at login",
+            isOn: Binding(
+              get: { launchAtLoginModel.isEnabled },
+              set: { enabled in
+                launchAtLoginModel.setEnabled(enabled)
+              }
+            )
+          )
+        }
+
+        Text(launchAtLoginDescription)
           .font(.callout)
           .foregroundStyle(.secondary)
 
         if launchAtLoginModel.requiresApproval {
           approvalRequiredMessage
-        } else if !launchAtLoginModel.isAvailable {
+        } else if launchAtLoginModel.requiresManualSetup {
           Label(
-            "PortDeck could not find its app registration. Reinstall the app and try again.",
-            systemImage: "exclamationmark.triangle.fill"
+            "In Login Items, click + under Open at Login, then choose PortDeck from Applications.",
+            systemImage: "gearshape.fill"
           )
-          .foregroundStyle(.orange)
+          .foregroundStyle(.secondary)
         }
 
         if let errorMessage = launchAtLoginModel.errorMessage {
@@ -61,6 +72,12 @@ struct SettingsView: View {
         launchAtLoginModel.refresh()
       }
     }
+  }
+
+  private var launchAtLoginDescription: String {
+    launchAtLoginModel.requiresManualSetup
+      ? "macOS requires PortDeck to be added manually on this Mac."
+      : "Open PortDeck automatically when you log in to this Mac."
   }
 
   private var approvalRequiredMessage: some View {

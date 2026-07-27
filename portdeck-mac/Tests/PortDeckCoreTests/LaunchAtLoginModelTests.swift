@@ -7,12 +7,12 @@ import Testing
   let enabledService = LaunchAtLoginServiceStub(status: .enabled)
   let enabledModel = LaunchAtLoginModel(service: enabledService)
   #expect(enabledModel.isEnabled)
-  #expect(enabledModel.isAvailable)
+  #expect(!enabledModel.requiresManualSetup)
 
   let missingService = LaunchAtLoginServiceStub(status: .notFound)
   let missingModel = LaunchAtLoginModel(service: missingService)
   #expect(!missingModel.isEnabled)
-  #expect(!missingModel.isAvailable)
+  #expect(missingModel.requiresManualSetup)
 }
 
 @MainActor
@@ -38,6 +38,18 @@ import Testing
   #expect(service.registerCallCount == 0)
   #expect(service.openSystemSettingsCallCount == 1)
   #expect(model.requiresApproval)
+}
+
+@MainActor
+@Test func launchAtLoginSendsManualSetupRequestsToSystemSettings() {
+  let service = LaunchAtLoginServiceStub(status: .notFound)
+  let model = LaunchAtLoginModel(service: service)
+
+  model.setEnabled(true)
+
+  #expect(service.registerCallCount == 0)
+  #expect(service.openSystemSettingsCallCount == 1)
+  #expect(model.requiresManualSetup)
 }
 
 @MainActor
