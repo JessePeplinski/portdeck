@@ -2,7 +2,7 @@
 
 ## MVP definition
 
-PortDeck's current verified provider set is Local, Vercel, Convex, GitHub Actions, Supabase, Cloudflare Workers/Pages, Railway, Fly.io, and Netlify. The remaining two integrations complete the planned provider breadth for the MVP:
+PortDeck's current verified provider set is Local, Vercel, Convex, GitHub Actions, Supabase, Cloudflare Workers/Pages, Railway, Fly.io, Netlify, and Hostinger. The remaining two integrations complete the planned provider breadth for the MVP:
 
 1. Render
 2. GitLab CI
@@ -34,6 +34,10 @@ Completed as an account-wide, read-only Netlify CLI 26.2.0 adapter. It lists acc
 ### 6. GitLab CI
 
 Match active local repositories with normalized GitLab remotes and show default-branch pipeline health through authenticated `glab` JSON commands. Do not retry, cancel, create, or modify pipelines.
+
+### User-demand addition: Hostinger
+
+Completed as an account-wide, read-only Hostinger CLI 3.7 adapter. It paginates the accessible hosted-website list, renders enabled/disabled state without claiming uptime, blocks automatic OAuth browser flows during polling, strips inherited token and endpoint variables, and preserves last-good data across failures. It cannot deploy, change hosting configuration, read application data, manage domains/DNS/VPS/billing, or mutate Hostinger resources or authentication. This explicit user-demand slice does not reopen generic provider expansion beyond Render and GitLab CI.
 
 ## Shared provider contract
 

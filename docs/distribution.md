@@ -106,7 +106,7 @@ Provider behavior is verified in Swift tests with injected executable paths and 
 
 ## External provider CLI contract
 
-Convex, Supabase, Wrangler, Railway, flyctl, and Netlify all use the same resolution order:
+Convex, Supabase, Wrangler, Railway, flyctl, Netlify, and Hostinger all use the same resolution order:
 
 1. The provider's authoritative `PORTDECK_*_BIN` override. An invalid override fails and never falls through.
 2. `command -v <cli>` through the user's login shell.
@@ -124,6 +124,7 @@ PortDeck validates these inclusive/exclusive ranges before caching an executable
 | Railway | `>=5.26.2 <6.0.0` | `brew install railway` |
 | flyctl | `>=0.4.71 <0.5.0` | `brew install flyctl` |
 | Netlify | `>=26.2.0 <27.0.0`, Node `>=20.12.2` | `brew install netlify-cli` |
+| Hostinger | `>=3.7.0 <4.0.0` | `brew install hostinger/tap/hostinger` |
 
 Missing and unsupported CLIs leave provider tabs visible. The app shows a copyable install command, official documentation, and Refresh. It never installs or upgrades a provider CLI automatically.
 

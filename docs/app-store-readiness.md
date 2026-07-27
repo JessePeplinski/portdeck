@@ -8,7 +8,7 @@ PortDeck is not ready for App Store Connect. The signed and notarized direct-dow
 - `scripts/build-sandbox-probe-app.sh` assembles a local sandboxed feasibility probe. It is not a submission artifact.
 - `scripts/build-release-app.sh` assembles an arm64 direct-download candidate with a bundled local-discovery helper and Node.js 24.18.0. That app is intentionally unsandboxed.
 - The direct-download production workflow adds the approved icon, Developer ID signing, notarization, and quarantine verification.
-- Provider CLIs are not embedded in either direct-download bundle. Convex, Supabase, Wrangler, Railway, flyctl, Netlify, Vercel, and GitHub integrations execute user-installed external CLIs and reuse their CLI-owned sessions.
+- Provider CLIs are not embedded in either direct-download bundle. Convex, Supabase, Wrangler, Railway, flyctl, Netlify, Hostinger, Vercel, and GitHub integrations execute user-installed external CLIs and reuse their CLI-owned sessions.
 - External executable lookup and external CLI credential access are not proven App Sandbox behaviors.
 - The bundled Node runtime requires a narrow JIT entitlement under hardened runtime. Its App Store acceptability remains unproven.
 

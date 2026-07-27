@@ -591,6 +591,8 @@ private extension PortdeckDashboardSource {
       return "Fly.io"
     case .netlify:
       return "Netlify"
+    case .hostinger:
+      return "Hostinger"
     }
   }
 
@@ -614,6 +616,8 @@ private extension PortdeckDashboardSource {
       return "Show Fly apps and Machines"
     case .netlify:
       return "Show Netlify production deployments"
+    case .hostinger:
+      return "Show Hostinger hosted websites"
     }
   }
 
@@ -637,6 +641,8 @@ private extension PortdeckDashboardSource {
       return "airplane"
     case .netlify:
       return "square.grid.2x2.fill"
+    case .hostinger:
+      return "globe"
     }
   }
 }
