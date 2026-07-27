@@ -8,13 +8,13 @@ struct SettingsView: View {
   var body: some View {
     Form {
       Section("General") {
-        if launchAtLoginModel.requiresManualSetup {
+        if launchAtLoginModel.requiresDirectRegistration {
           HStack {
             Text("Launch PortDeck at login")
 
             Spacer()
 
-            Button("Open Login Items…") {
+            Button("Add to Startup") {
               launchAtLoginModel.setEnabled(true)
             }
           }
@@ -36,12 +36,16 @@ struct SettingsView: View {
 
         if launchAtLoginModel.requiresApproval {
           approvalRequiredMessage
-        } else if launchAtLoginModel.requiresManualSetup {
+        } else if launchAtLoginModel.shouldOfferSystemSettingsFallback {
           Label(
-            "In Login Items, click + under Open at Login, then choose PortDeck from Applications.",
-            systemImage: "gearshape.fill"
+            "macOS could not add PortDeck automatically. You can still add it in Login Items.",
+            systemImage: "exclamationmark.triangle.fill"
           )
-          .foregroundStyle(.secondary)
+          .foregroundStyle(.orange)
+
+          Button("Open Login Items…") {
+            launchAtLoginModel.openSystemSettings()
+          }
         }
 
         if let errorMessage = launchAtLoginModel.errorMessage {
@@ -75,8 +79,8 @@ struct SettingsView: View {
   }
 
   private var launchAtLoginDescription: String {
-    launchAtLoginModel.requiresManualSetup
-      ? "macOS requires PortDeck to be added manually on this Mac."
+    launchAtLoginModel.requiresDirectRegistration
+      ? "Add this PortDeck application directly to macOS Login Items."
       : "Open PortDeck automatically when you log in to this Mac."
   }
 

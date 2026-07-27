@@ -65,8 +65,12 @@ final class LaunchAtLoginModel: ObservableObject {
     status == .requiresApproval
   }
 
-  var requiresManualSetup: Bool {
+  var requiresDirectRegistration: Bool {
     status == .notFound
+  }
+
+  var shouldOfferSystemSettingsFallback: Bool {
+    requiresDirectRegistration && errorMessage != nil
   }
 
   func refresh() {
@@ -78,7 +82,7 @@ final class LaunchAtLoginModel: ObservableObject {
 
     do {
       if enabled {
-        if status == .requiresApproval || status == .notFound {
+        if status == .requiresApproval {
           service.openSystemSettings()
         } else if status != .enabled {
           try service.register()

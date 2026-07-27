@@ -7,12 +7,12 @@ import Testing
   let enabledService = LaunchAtLoginServiceStub(status: .enabled)
   let enabledModel = LaunchAtLoginModel(service: enabledService)
   #expect(enabledModel.isEnabled)
-  #expect(!enabledModel.requiresManualSetup)
+  #expect(!enabledModel.requiresDirectRegistration)
 
   let missingService = LaunchAtLoginServiceStub(status: .notFound)
   let missingModel = LaunchAtLoginModel(service: missingService)
   #expect(!missingModel.isEnabled)
-  #expect(missingModel.requiresManualSetup)
+  #expect(missingModel.requiresDirectRegistration)
 }
 
 @MainActor
@@ -41,15 +41,34 @@ import Testing
 }
 
 @MainActor
-@Test func launchAtLoginSendsManualSetupRequestsToSystemSettings() {
+@Test func launchAtLoginRegistersDirectlyWhenStatusIsNotFound() {
   let service = LaunchAtLoginServiceStub(status: .notFound)
   let model = LaunchAtLoginModel(service: service)
 
   model.setEnabled(true)
 
-  #expect(service.registerCallCount == 0)
+  #expect(service.registerCallCount == 1)
+  #expect(service.openSystemSettingsCallCount == 0)
+  #expect(model.isEnabled)
+  #expect(!model.requiresDirectRegistration)
+  #expect(!model.shouldOfferSystemSettingsFallback)
+}
+
+@MainActor
+@Test func launchAtLoginOffersSystemSettingsOnlyAfterDirectRegistrationFails() {
+  let service = LaunchAtLoginServiceStub(status: .notFound)
+  service.registerError = LaunchAtLoginTestError.registrationFailed
+  let model = LaunchAtLoginModel(service: service)
+
+  model.setEnabled(true)
+
+  #expect(service.registerCallCount == 1)
+  #expect(service.openSystemSettingsCallCount == 0)
+  #expect(model.errorMessage == "Registration failed")
+  #expect(model.shouldOfferSystemSettingsFallback)
+
+  model.openSystemSettings()
   #expect(service.openSystemSettingsCallCount == 1)
-  #expect(model.requiresManualSetup)
 }
 
 @MainActor

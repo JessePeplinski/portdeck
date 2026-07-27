@@ -53,6 +53,7 @@ app_bundle="$extract_root/PortDeck.app"
 isolated_home="$verification_root/home"
 app_pid=""
 open_pid=""
+launch_services_register="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
 run_helper() {
   /usr/bin/env -i \
@@ -74,6 +75,9 @@ cleanup() {
   if [[ -n "$open_pid" ]] && /bin/kill -0 "$open_pid" 2>/dev/null; then
     /bin/kill "$open_pid" 2>/dev/null || true
     wait "$open_pid" 2>/dev/null || true
+  fi
+  if [[ -d "$app_bundle" && -x "$launch_services_register" ]]; then
+    "$launch_services_register" -u "$app_bundle" >/dev/null 2>&1 || true
   fi
   /bin/rm -rf "$verification_root"
 }
