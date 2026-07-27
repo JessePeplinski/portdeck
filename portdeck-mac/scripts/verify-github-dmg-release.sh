@@ -57,11 +57,24 @@ temporary_app="$verification_root/PortDeck.app"
 temporary_zip="$verification_root/$release_asset"
 temporary_zip_checksum="$verification_root/$release_checksum_asset"
 mounted=0
+launch_services_register="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
+unregister_app() {
+  if [[ -x "$launch_services_register" ]]; then
+    "$launch_services_register" -u "$1" >/dev/null 2>&1 || true
+  fi
+}
 
 cleanup() {
+  unregister_app "$mount_root/PortDeck.app"
+  unregister_app "$temporary_app"
   if [[ "$mounted" -eq 1 ]]; then
     /usr/bin/hdiutil detach -quiet "$mount_root" >/dev/null 2>&1 || true
   fi
+  # LaunchServices can retain an entry after the mounted or copied app has
+  # disappeared, so unregister the exact generated paths again post-detach.
+  unregister_app "$mount_root/PortDeck.app"
+  unregister_app "$temporary_app"
   /bin/rm -rf "$verification_root"
 }
 trap cleanup EXIT
