@@ -329,6 +329,7 @@ public enum PortdeckDashboardSource: String, CaseIterable, Hashable, Identifiabl
   case railway
   case fly
   case netlify
+  case hostinger
 
   public var id: String { rawValue }
 }

@@ -118,7 +118,8 @@ func externalProviderResolverReturnsNilWhenCLIIsMissing() throws {
   (CloudflareRuntimeResolver.supportedVersionRange, "4.111.0", "4.999.999", "5.0.0"),
   (RailwayRuntimeResolver.supportedVersionRange, "5.26.2", "5.999.999", "6.0.0"),
   (FlyRuntimeResolver.supportedVersionRange, "0.4.71", "0.4.999", "0.5.0"),
-  (NetlifyRuntimeResolver.supportedVersionRange, "26.2.0", "26.999.999", "27.0.0")
+  (NetlifyRuntimeResolver.supportedVersionRange, "26.2.0", "26.999.999", "27.0.0"),
+  (HostingerRuntimeResolver.supportedVersionRange, "3.7.0", "3.999.999", "4.0.0")
 ])
 func providerVersionRangesAreInclusiveAtMinimumAndExclusiveAtNextMajor(
   range: SupportedProviderCLIVersionRange,

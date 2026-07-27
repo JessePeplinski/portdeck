@@ -32,6 +32,7 @@ struct StatusView: View {
   @ObservedObject var railwayModel: RailwayStatusModel
   @ObservedObject var flyModel: FlyStatusModel
   @ObservedObject var netlifyModel: NetlifyStatusModel
+  @ObservedObject var hostingerModel: HostingerStatusModel
   @ObservedObject var providerConfiguration: ProviderConfigurationModel
   @AppStorage("PortDeck.selectedDashboardTab") private var selectedDashboardTab = PortdeckDashboardSource.local.rawValue
   @State private var localSearchText = ""
@@ -43,6 +44,7 @@ struct StatusView: View {
   @State private var railwaySearchText = ""
   @State private var flySearchText = ""
   @State private var netlifySearchText = ""
+  @State private var hostingerSearchText = ""
   @State private var collapsedProjectIDs: Set<String> = []
   @State private var expandedUnknownSectionIDs: Set<String> = [
     PortdeckUnknownServiceCategory.unattached.id,
@@ -112,6 +114,8 @@ struct StatusView: View {
         await flyModel.runAutoRefresh()
       } else if selectedSource == .netlify {
         await netlifyModel.runAutoRefresh()
+      } else if selectedSource == .hostinger {
+        await hostingerModel.runAutoRefresh()
       }
     }
     .onChange(of: model.status?.generatedAt) {
@@ -130,6 +134,9 @@ struct StatusView: View {
       if oldProvider == .netlify, newProvider != .netlify {
         netlifyModel.cancelRefresh()
       }
+      if oldProvider == .hostinger, newProvider != .hostinger {
+        hostingerModel.cancelRefresh()
+      }
     }
     .onAppear(perform: restoreDashboardSelection)
     .onChange(of: providerConfiguration.selectedProvider) { _, provider in
@@ -138,6 +145,7 @@ struct StatusView: View {
     .onDisappear {
       flyModel.cancelRefresh()
       netlifyModel.cancelRefresh()
+      hostingerModel.cancelRefresh()
     }
   }
 
@@ -286,6 +294,15 @@ struct StatusView: View {
         model: netlifyModel,
         searchText: netlifySearchText,
         onRefresh: { Task { await netlifyModel.refresh() } }
+      )
+    case .hostinger:
+      if !hostingerModel.websites.isEmpty {
+        searchField(placeholder: "Filter Hostinger websites...", text: $hostingerSearchText)
+      }
+      HostingerStatusView(
+        model: hostingerModel,
+        searchText: hostingerSearchText,
+        onRefresh: { Task { await hostingerModel.refresh() } }
       )
     }
   }
@@ -465,6 +482,8 @@ struct StatusView: View {
       return flySubtitle
     case .netlify:
       return netlifySubtitle
+    case .hostinger:
+      return hostingerSubtitle
     case .local:
       break
     }
@@ -616,6 +635,24 @@ struct StatusView: View {
     }
   }
 
+  private var hostingerSubtitle: String {
+    switch hostingerModel.connectionState {
+    case .missingCLI:
+      return "Hostinger CLI required"
+    case .unsupportedCLI:
+      return "Hostinger CLI update required"
+    case .authenticationRequired:
+      return "Hostinger authentication required"
+    case .rateLimited:
+      return "Hostinger API rate limited"
+    case .failed:
+      return "Hostinger websites unavailable"
+    case .checking, .connected:
+      let count = hostingerModel.websites.count
+      return "\(count) accessible Hostinger \(plural(count, singular: "website", plural: "websites"))"
+    }
+  }
+
   private var showsHeaderProgress: Bool {
     switch activeSource {
     case .vercel:
@@ -634,6 +671,8 @@ struct StatusView: View {
       return flyModel.showsHeaderProgress
     case .netlify:
       return netlifyModel.showsHeaderProgress
+    case .hostinger:
+      return hostingerModel.showsHeaderProgress
     case .local:
       return model.showsHeaderProgress
     }
@@ -978,6 +1017,8 @@ struct StatusView: View {
       Task { await flyModel.refresh() }
     case .netlify:
       Task { await netlifyModel.refresh() }
+    case .hostinger:
+      Task { await hostingerModel.refresh() }
     }
   }
 
@@ -2653,6 +2694,8 @@ private extension PortdeckDashboardSource {
       return "Fly.io"
     case .netlify:
       return "Netlify"
+    case .hostinger:
+      return "Hostinger"
     }
   }
 
@@ -2676,6 +2719,8 @@ private extension PortdeckDashboardSource {
       return "airplane"
     case .netlify:
       return "square.grid.2x2.fill"
+    case .hostinger:
+      return "globe"
     }
   }
 
@@ -2699,6 +2744,8 @@ private extension PortdeckDashboardSource {
       return .indigo
     case .netlify:
       return .mint
+    case .hostinger:
+      return .indigo
     }
   }
 
@@ -2722,6 +2769,8 @@ private extension PortdeckDashboardSource {
       return "Show Fly app, Machine, check, and release status"
     case .netlify:
       return "Show Netlify production deployment status"
+    case .hostinger:
+      return "Show Hostinger hosted website enabled state"
     }
   }
 }

@@ -19,6 +19,7 @@ struct PortDeckMacApp: App {
   @StateObject private var railwayModel = RailwayStatusModel()
   @StateObject private var flyModel = FlyStatusModel()
   @StateObject private var netlifyModel = NetlifyStatusModel()
+  @StateObject private var hostingerModel = HostingerStatusModel()
   @StateObject private var providerConfiguration = ProviderConfigurationModel()
   @StateObject private var launchAtLoginModel = LaunchAtLoginModel()
 
@@ -34,6 +35,7 @@ struct PortDeckMacApp: App {
         railwayModel: railwayModel,
         flyModel: flyModel,
         netlifyModel: netlifyModel,
+        hostingerModel: hostingerModel,
         providerConfiguration: providerConfiguration
       )
         .frame(width: 500, height: menuWindowHeight)

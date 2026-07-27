@@ -185,7 +185,8 @@ if /usr/bin/find "$app_bundle" -type d \( \
 fi
 if /usr/bin/find "$app_bundle" -type f \( \
   -iname 'credentials' -o -iname 'credentials.json' -o -iname '*auth-store*' -o \
-  -iname '.netrc' -o -iname '.git-credentials' -o -iname '.npmrc' -o -iname 'auth.json' \
+  -iname '.netrc' -o -iname '.git-credentials' -o -iname '.npmrc' -o -iname 'auth.json' -o \
+  -iname '.hostinger.yaml' \
 \) -print -quit | /usr/bin/grep -q .; then
   fail "bundle contains a credential or auth-store file"
 fi

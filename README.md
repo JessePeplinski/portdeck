@@ -3,13 +3,13 @@
 PortDeck is a native macOS menu-bar command center for local development services and read-only deployment-provider health.
 
 > [!IMPORTANT]
-> PortDeck is in pre-release development. `v0.1.0-beta.9` is the next signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production direct-download artifacts remain separate workflows.
+> PortDeck is in pre-release development. `v0.1.0-beta.10` is the next signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production direct-download artifacts remain separate workflows.
 
 ## What PortDeck does
 
 - Discovers listening ports, processes, Git repositories and worktrees, and Docker services on the local Mac.
 - Groups running services by project and worktree, with focused open, inspect, and confirmed stop controls.
-- Shows read-only production and deployment health for Vercel, Convex, GitHub Actions, Supabase, Cloudflare, Railway, Fly.io, and Netlify.
+- Shows read-only production and deployment health for Vercel, Convex, GitHub Actions, Supabase, Cloudflare, Railway, Fly.io, Netlify, and Hostinger.
 - Keeps provider tabs configurable without changing the underlying discovery or provider contracts.
 
 Provider views are observation surfaces. They use existing authenticated sessions owned by the providers' official CLIs and do not deploy, restart, configure, or delete remote resources. Local stop controls act only on currently discovered process or Docker identities after explicit confirmation.
@@ -25,14 +25,14 @@ open -a PortDeck
 
 Homebrew installs the same signed and notarized app published on GitHub. For a manual installation, download the DMG, open it, and drag PortDeck into Applications:
 
-- [`PortDeck-0.1.0-beta.9-macos-arm64.dmg`](../../releases/download/v0.1.0-beta.9/PortDeck-0.1.0-beta.9-macos-arm64.dmg)
-- [`PortDeck-0.1.0-beta.9-macos-arm64.dmg.sha256`](../../releases/download/v0.1.0-beta.9/PortDeck-0.1.0-beta.9-macos-arm64.dmg.sha256)
+- [`PortDeck-0.1.0-beta.10-macos-arm64.dmg`](../../releases/download/v0.1.0-beta.10/PortDeck-0.1.0-beta.10-macos-arm64.dmg)
+- [`PortDeck-0.1.0-beta.10-macos-arm64.dmg.sha256`](../../releases/download/v0.1.0-beta.10/PortDeck-0.1.0-beta.10-macos-arm64.dmg.sha256)
 
 Download both files into the same directory, verify the disk image, then open it:
 
 ```bash
-shasum -a 256 -c PortDeck-0.1.0-beta.9-macos-arm64.dmg.sha256
-open PortDeck-0.1.0-beta.9-macos-arm64.dmg
+shasum -a 256 -c PortDeck-0.1.0-beta.10-macos-arm64.dmg.sha256
+open PortDeck-0.1.0-beta.10-macos-arm64.dmg
 ```
 
 The versioned ZIP and checksum remain on the GitHub Release for Homebrew and fallback installs. Both containers hold the same Developer ID-signed, Apple-notarized app. PortDeck does not use App Sandbox in the direct-download build because local process, port, Git, Docker, stop controls, and external provider CLI access require the separately verified direct-download boundary.
@@ -47,6 +47,7 @@ Provider tabs stay available even when their CLI is missing. PortDeck shows the 
 | Railway | `>=5.26.2 <6.0.0` |
 | Fly.io | flyctl `>=0.4.71 <0.5.0` |
 | Netlify | `>=26.2.0 <27.0.0`, Node.js `>=20.12.2` |
+| Hostinger | `>=3.7.0 <4.0.0` |
 
 Vercel and GitHub continue to use their existing external CLI contracts.
 

@@ -98,6 +98,7 @@ import Testing
   #expect(actions.containsAction(.switchSource(.railway), title: "Switch to Railway"))
   #expect(actions.containsAction(.switchSource(.fly), title: "Switch to Fly.io"))
   #expect(actions.containsAction(.switchSource(.netlify), title: "Switch to Netlify"))
+  #expect(actions.containsAction(.switchSource(.hostinger), title: "Switch to Hostinger"))
   #expect(actions.containsAction(.toggleSystemListeners, title: "Show likely system listeners"))
   #expect(systemVisibleActions.containsAction(.toggleSystemListeners, title: "Hide likely system listeners"))
 }
@@ -141,6 +142,8 @@ import Testing
   #expect(!collectedActions.contains { $0.kind == .switchSource(.supabase) })
   #expect(!directActions.contains { $0.kind == .switchSource(.netlify) })
   #expect(!collectedActions.contains { $0.kind == .switchSource(.netlify) })
+  #expect(!directActions.contains { $0.kind == .switchSource(.hostinger) })
+  #expect(!collectedActions.contains { $0.kind == .switchSource(.hostinger) })
 }
 
 @Test func commandPaletteMatchesAliasesAndRanksPowerUserQueries() throws {
