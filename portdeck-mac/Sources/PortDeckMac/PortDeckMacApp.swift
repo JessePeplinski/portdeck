@@ -20,6 +20,7 @@ struct PortDeckMacApp: App {
   @StateObject private var flyModel = FlyStatusModel()
   @StateObject private var netlifyModel = NetlifyStatusModel()
   @StateObject private var providerConfiguration = ProviderConfigurationModel()
+  @StateObject private var launchAtLoginModel = LaunchAtLoginModel()
 
   var body: some Scene {
     MenuBarExtra {
@@ -44,6 +45,13 @@ struct PortDeckMacApp: App {
       }
     }
     .menuBarExtraStyle(.window)
+
+    Settings {
+      SettingsView(
+        launchAtLoginModel: launchAtLoginModel,
+        statusModel: model
+      )
+    }
   }
 
   private var menuWindowHeight: CGFloat {

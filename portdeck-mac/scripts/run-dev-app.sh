@@ -16,5 +16,11 @@ cp "$info_plist" "$app_bundle/Contents/Info.plist"
 cp "Resources/PortDeck.icns" "$app_bundle/Contents/Resources/PortDeck.icns"
 touch "$app_bundle/Contents/Resources/.portdeck-source-development"
 
+/usr/bin/codesign \
+  --force \
+  --sign - \
+  "$app_bundle"
+/usr/bin/codesign --verify --deep --strict "$app_bundle"
+
 pkill -x PortDeckMac 2>/dev/null || true
 open -n "$app_bundle"
