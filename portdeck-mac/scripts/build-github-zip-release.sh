@@ -8,8 +8,17 @@ candidate_app="$build_root/release-artifacts/PortDeck.app"
 artifact_root="$build_root/github-release-artifacts"
 staging_root="$build_root/github-release-staging"
 staging_app="$staging_root/PortDeck.app"
+final_app="$artifact_root/PortDeck.app"
+launch_services_register="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 # shellcheck source=release-config.sh
 source "$script_root/release-config.sh"
+
+cleanup_launch_services() {
+  [[ -x "$launch_services_register" ]] || return
+  "$launch_services_register" -u "$staging_app" >/dev/null 2>&1 || true
+  "$launch_services_register" -u "$final_app" >/dev/null 2>&1 || true
+}
+trap cleanup_launch_services EXIT
 
 if [[ "${PORTDECK_APPROVE_SIGNING_AND_NOTARIZATION:-}" != "YES" ]]; then
   echo "Refusing to use signing/notarization credentials without explicit approval." >&2
@@ -161,7 +170,6 @@ xcrun stapler staple "$staging_app"
 xcrun stapler validate "$staging_app"
 /bin/rm -f "$notarization_zip"
 
-final_app="$artifact_root/PortDeck.app"
 /usr/bin/ditto "$staging_app" "$final_app"
 final_zip="$artifact_root/$release_asset"
 checksum_file="$artifact_root/$release_checksum_asset"

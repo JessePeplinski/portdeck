@@ -46,6 +46,25 @@ final_dmg="$artifact_root/$release_dmg"
 checksum_file="$artifact_root/$release_dmg_checksum_asset"
 submission_result="$artifact_root/dmg-notarization-submission.json"
 submission_log="$artifact_root/dmg-notarization-log.json"
+launch_services_register="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
+cleanup_launch_services() {
+  [[ -x "$launch_services_register" ]] || return
+  "$launch_services_register" -u "$dmg_source_root/PortDeck.app" >/dev/null 2>&1 || true
+  "$launch_services_register" -u "$final_app" >/dev/null 2>&1 || true
+
+  # create-dmg uses a generated /Volumes/dmg.* mount. It can disappear before
+  # cleanup while its PortDeck registration remains, so remove only those
+  # generated mount registrations.
+  while IFS= read -r generated_app; do
+    [[ -n "$generated_app" ]] || continue
+    "$launch_services_register" -u "$generated_app" >/dev/null 2>&1 || true
+  done < <(
+    "$launch_services_register" -dump 2>/dev/null \
+      | /usr/bin/sed -nE 's#^[[:space:]]*path:[[:space:]]+(/Volumes/dmg\.[^[:space:]]*/PortDeck\.app).*#\1#p'
+  )
+}
+trap cleanup_launch_services EXIT
 
 /bin/rm -rf "$dmg_staging_root"
 /bin/mkdir -p "$dmg_source_root" "$artifact_root"
