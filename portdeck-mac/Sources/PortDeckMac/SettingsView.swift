@@ -14,7 +14,7 @@ struct SettingsView: View {
 
             Spacer()
 
-            Button("Add to Startup") {
+            Button("Open at Login") {
               launchAtLoginModel.setEnabled(true)
             }
           }
