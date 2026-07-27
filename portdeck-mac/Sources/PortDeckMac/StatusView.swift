@@ -22,6 +22,7 @@ enum FooterAttribution {
 }
 
 struct StatusView: View {
+  @Environment(\.openSettings) private var openSettings
   @ObservedObject var model: StatusModel
   @ObservedObject var vercelModel: VercelStatusModel
   @ObservedObject var convexModel: ConvexStatusModel
@@ -385,28 +386,6 @@ struct StatusView: View {
         .keyboardShortcut("r")
         .disabled(!selectedSourceSupportsRefresh)
 
-        if selectedSource == .local {
-          Menu {
-            Button {
-              model.copyJSON()
-            } label: {
-              Label("Copy status JSON", systemImage: "doc.on.doc")
-            }
-            .disabled(model.rawJSON.isEmpty)
-
-            Button {
-              model.showLikelySystemListeners.toggle()
-            } label: {
-              Label(
-                model.showLikelySystemListeners ? "Hide likely system listeners" : "Show likely system listeners",
-                systemImage: "desktopcomputer"
-              )
-            }
-          } label: {
-            Label("Diagnostics", systemImage: "wrench.and.screwdriver")
-          }
-        }
-
 #if !APP_STORE
         Button {
           openDonationPage()
@@ -417,6 +396,15 @@ struct StatusView: View {
 #endif
 
         Spacer()
+
+        Button {
+          SettingsWindowPresenter.present(openSettings: {
+            openSettings()
+          })
+        } label: {
+          Label("Settings", systemImage: "gearshape")
+        }
+        .keyboardShortcut(",", modifiers: .command)
 
         Button("Quit") {
           NSApplication.shared.terminate(nil)
