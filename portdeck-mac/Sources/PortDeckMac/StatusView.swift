@@ -431,7 +431,7 @@ struct StatusView: View {
         Button("Quit") {
           NSApplication.shared.terminate(nil)
         }
-        .keyboardShortcut("q")
+        .keyboardShortcut("q", modifiers: .command)
       }
 
       Divider()
