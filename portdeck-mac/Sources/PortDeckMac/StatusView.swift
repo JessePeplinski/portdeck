@@ -152,7 +152,7 @@ struct StatusView: View {
   private var header: some View {
     HStack(spacing: 10) {
       PortDeckMarkShape()
-        .fill(.primary, style: FillStyle(eoFill: true))
+        .fill(.white, style: FillStyle(eoFill: true))
         .frame(width: 28, height: 12)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
