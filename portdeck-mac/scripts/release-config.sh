@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
 # Shared, non-secret inputs for the current PortDeck direct-download beta.
-release_version="${PORTDECK_RELEASE_VERSION:-0.1.0-beta.11}"
+release_version="${PORTDECK_RELEASE_VERSION:-0.1.0-beta.12}"
 release_tag="${PORTDECK_RELEASE_TAG:-v${release_version}}"
 marketing_version="${PORTDECK_MARKETING_VERSION:-0.1.0}"
-bundle_version="${PORTDECK_BUNDLE_VERSION:-11}"
+bundle_version="${PORTDECK_BUNDLE_VERSION:-12}"
 release_architecture="arm64"
 minimum_macos_version="14.0"
 
 approved_release_icon="$script_root/../Resources/PortDeck.icns"
-approved_release_icon_sha256="86e6644078fffa4ae178c8acda6533fa622c82f8d375b5c2304bf8b4dc72fde5"
+approved_release_icon_sha256="72b0c4231531d774b8f1ad28cdd18f2bd6745da2838d4985c34df55622c4af14"
 
 release_asset="PortDeck-${release_version}-macos-${release_architecture}.zip"
 release_checksum_asset="${release_asset}.sha256"
