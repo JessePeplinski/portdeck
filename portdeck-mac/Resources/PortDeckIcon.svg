@@ -7,7 +7,15 @@
   fill="none"
 >
   <title>PortDeck</title>
-  <desc>A minimal single-server mark with two status indicators.</desc>
+  <desc>A white single-server mark with two status indicators on a black app icon.</desc>
+  <rect
+    x="52"
+    y="52"
+    width="920"
+    height="920"
+    rx="214"
+    fill="#000000"
+  />
   <rect
     x="144"
     y="372"
