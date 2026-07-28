@@ -3,14 +3,13 @@ import PortDeckCore
 import Testing
 @testable import PortDeckMac
 
-@Test func usesThirtySecondGitHubPollingAndPresentsLastSuccessfulAge() {
-  #expect(GitHubStatusModel.refreshIntervalSeconds == 30)
-  #expect(githubLastCheckedLabel(ageSeconds: 4) == "Checked 4s ago · every 30s")
+@Test func presentsGitHubWithTheSharedLastSuccessfulAge() {
+  #expect(refreshLastCheckedLabel(ageSeconds: 4) == "Checked 4s ago")
 
   let lastUpdated = Date(timeIntervalSince1970: 100)
-  #expect(githubPollingAgeSeconds(lastUpdated: lastUpdated, relativeTo: lastUpdated) == 0)
-  #expect(githubPollingAgeSeconds(lastUpdated: lastUpdated, relativeTo: Date(timeIntervalSince1970: 104.9)) == 4)
-  #expect(githubPollingAgeSeconds(lastUpdated: lastUpdated, relativeTo: Date(timeIntervalSince1970: 99)) == 0)
+  #expect(refreshAgeSeconds(lastUpdated: lastUpdated, relativeTo: lastUpdated) == 0)
+  #expect(refreshAgeSeconds(lastUpdated: lastUpdated, relativeTo: Date(timeIntervalSince1970: 104.9)) == 4)
+  #expect(refreshAgeSeconds(lastUpdated: lastUpdated, relativeTo: Date(timeIntervalSince1970: 99)) == 0)
 }
 
 @MainActor
@@ -109,32 +108,6 @@ import Testing
   await unauthenticatedModel.refresh(status: nil)
   #expect(unauthenticatedModel.connectionState == .unauthenticated)
   #expect(unauthenticatedModel.errorMessage?.contains(GitHubCLIClient.loginCommand) == true)
-}
-
-@MainActor
-@Test func cancelsGitHubPollingWhenTheOwningTaskEnds() async {
-  let candidate = githubCandidate(owner: "OpenAI", repository: "codex", project: "Codex")
-  let client = FakeGitHubClient(
-    workflowResults: [],
-    fallbackWorkflowResult: .success([githubRun(id: 1, workflowID: 1, conclusion: "success")])
-  )
-  let model = GitHubStatusModel(
-    client: client,
-    resolver: FakeGitHubResolver(candidates: [candidate]),
-    pollInterval: .milliseconds(10)
-  )
-
-  let task = Task { await model.runAutoRefresh(status: nil) }
-  for _ in 0..<100 where await client.workflowCallCount < 2 {
-    try? await Task.sleep(for: .milliseconds(2))
-  }
-  task.cancel()
-  _ = await task.result
-  let countAfterCancellation = await client.workflowCallCount
-  try? await Task.sleep(for: .milliseconds(40))
-
-  #expect(countAfterCancellation >= 2)
-  #expect(await client.workflowCallCount == countAfterCancellation)
 }
 
 private actor FakeGitHubClient: GitHubCLIClientProtocol {

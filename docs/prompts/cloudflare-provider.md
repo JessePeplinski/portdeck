@@ -12,7 +12,7 @@ Implement a read-only Cloudflare Workers and Pages provider in PortDeck.
 - Start from the latest `main` at or after commit `58b0c7d`.
 - The SwiftPM macOS menu-bar app is under `portdeck-mac`.
 - Existing providers: Local, Vercel, Convex, GitHub Actions, and Supabase.
-- Provider visibility, ordering, selected-only polling, command-palette filtering, app-owned provider models, and last-good snapshot patterns already exist.
+- Provider visibility, ordering, selection-triggered refresh, command-palette filtering, app-owned provider models, and last-good snapshot patterns already exist.
 - Existing launcher: `portdeck-mac/scripts/run-dev-app.sh`.
 
 ## Goal
@@ -85,8 +85,8 @@ The provider is status-only. It must not read application payloads, tail logs, i
 - Existing preferences append Cloudflare visibly without resetting order or hidden choices.
 - Include Cloudflare in hide/reorder controls and command-palette source switching.
 - Hidden or unselected Cloudflare must not poll.
-- Poll immediately when selected and every 60 seconds afterward.
-- Leaving or hiding the tab cancels polling; manual refresh fetches immediately.
+- Refresh once when selected or reopened, with an immediate manual per-view refresh.
+- Leaving or hiding the tab cancels an in-flight refresh; manual refresh fetches immediately.
 - Prevent overlapping refreshes.
 - Preserve the last successful Pages and Workers snapshots during rate limits, malformed output, authentication expiry, runtime errors, or other transient failures.
 - Reordering tabs must not recreate the model or discard either snapshot.
@@ -105,7 +105,7 @@ The provider is status-only. It must not read application payloads, tail logs, i
 ## Architecture
 
 - Put runtime resolution, process execution, parsing, candidate resolution, status types, sorting, and search in `PortDeckCore`.
-- Put polling ownership, snapshot preservation, connection state, and SwiftUI presentation in `PortDeckMac`.
+- Put refresh ownership, snapshot preservation, connection state, and SwiftUI presentation in `PortDeckMac`.
 - Add the Cloudflare model as an app-level `@StateObject` and add independent `cloudflareSearchText` in `StatusView`.
 - Keep Pages and Workers refresh results independently preservable so one side can degrade without erasing the other.
 - Do not change the local `portdeck status --json` contract unless candidate discovery proves a missing general-purpose package/config field; prefer the existing status/project/worktree paths first.
@@ -124,8 +124,8 @@ Add focused Swift coverage for:
 - candidate deduplication across worktrees and account ambiguity;
 - Pages/Workers independent snapshot preservation and partial failure;
 - sorting, search, timestamps, production URLs, and safe dashboard links;
-- immediate plus 60-second polling, cancellation, manual refresh, and overlap prevention;
-- default provider inclusion, migration of stored preferences, hidden-provider command-palette filtering, and no polling while hidden/unselected;
+- selection-triggered and manual refresh, cancellation, and overlap prevention;
+- default provider inclusion, migration of stored preferences, and hidden-provider command-palette filtering;
 - provider model/snapshot preservation after tab reorder.
 
 ## Verification
@@ -133,7 +133,7 @@ Add focused Swift coverage for:
 - Run focused Swift tests during implementation.
 - Run `git diff --check` and complete `npm run verify`.
 - Launch through `portdeck-mac/scripts/run-dev-app.sh` and leave the final app running.
-- Visually verify Cloudflare presentation, Workers/Pages grouping, search, refresh, hide/reorder, command palette, polling cancellation, persistence after relaunch, and every connection/setup state available locally.
+- Visually verify Cloudflare presentation, Workers/Pages grouping, search, selection-triggered and manual refresh, hide/reorder, command palette, persistence after relaunch, and every connection/setup state available locally.
 - If an existing Wrangler session is authenticated, verify real read-only rendering without exposing project names, account IDs, tokens, or other private values in the handoff. If not authenticated, verify the authentication-required state and do not initiate login.
 
 ## Final handoff

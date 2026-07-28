@@ -32,12 +32,12 @@ The first adapter reuses Vercel CLI 50.5.1 or newer. Vercel CLI owns device-flow
 ```text
 Vercel account
   -> Vercel CLI authenticated session
-  -> 60-second project baseline + 2-second production deployment activity
+  -> project baseline + production deployment activity on provider-view selection
   -> portdeck-mac provider adapter
   -> Vercel live-services view
 ```
 
-The project and team baseline refreshes when the Vercel view opens and about every 60 seconds. A failed team-name lookup falls back to the generic active-team label without hiding valid projects. Recent production deployment activity polls with one account-wide request about every two seconds while that view remains active, without showing the header spinner or making per-project enrichment calls. The adapter decodes only stable project framework/production-branch data plus deployed branch, commit SHA/message, source, build timing, inspector URL, and bounded credential-redacted failure detail. It ignores author identity and unrelated deployment metadata. The view shows the live cadence and counts up from the last successful activity check. Leaving the Vercel view cancels both provider polling loops. A transient activity-feed failure preserves the last successful project and deployment snapshot, and a failed newest attempt retains the prior public production alias.
+Selecting or reopening the Vercel provider view performs one complete refresh: the project/team baseline followed by one account-wide recent production-deployment request. A failed team-name lookup falls back to the generic active-team label without hiding valid projects. The adapter decodes only stable project framework/production-branch data plus deployed branch, commit SHA/message, source, build timing, inspector URL, and bounded credential-redacted failure detail. It ignores author identity and unrelated deployment metadata. The view shows the last successful check and a compact manual Refresh action. A transient activity-feed failure preserves the last successful project and deployment snapshot, and a failed newest attempt retains the prior public production alias.
 
 Convex, Supabase, Wrangler, Railway, flyctl, Netlify, and Hostinger share one external CLI contract. Resolution checks the provider's authoritative `PORTDECK_*_BIN` override, the user's login shell, then `/opt/homebrew/bin` and `/usr/local/bin`. Invalid overrides fail without fallback. PortDeck never searches monitored projects, repository `node_modules`, or bundled provider paths. Node-based commands prepend the resolved executable directory to `PATH` for Finder compatibility. The app validates an explicit supported semantic-version range, keeps missing/unsupported provider tabs visible, and offers install documentation and Refresh without installing or upgrading CLIs.
 
@@ -49,13 +49,13 @@ active local project/worktree snapshot
   -> Convex Management API default-production resolution
   -> supported external Convex CLI authenticated session
   -> `convex insights --json --deployment team:project:prod`
-  -> 60-second production health snapshot
+  -> production health snapshot on provider-view selection
   -> portdeck-mac Convex view
 ```
 
 Convex accepts CLI versions `>=1.42.1 <2.0.0`. The override is `PORTDECK_CONVEX_BIN`. PortDeck never installs or updates Convex or linked-project dependencies.
 
-The Convex view reports the production deployment name and 72-hour OCC/resource-limit insights exposed by the structured CLI response. Management API metadata and CLI health collection are separate stages, so a missing or failed CLI degrades the row to **Health unavailable** while preserving the production deployment name and dashboard link. It shows PortDeck's last successful health check, cancels polling when the view closes, and preserves the last successful health snapshot on transient command failures. This path is read-only: it does not deploy functions, inspect application data, mutate deployment settings, or write credentials.
+The Convex view reports the production deployment name and 72-hour OCC/resource-limit insights exposed by the structured CLI response. Management API metadata and CLI health collection are separate stages, so a missing or failed CLI degrades the row to **Health unavailable** while preserving the production deployment name and dashboard link. Selecting or reopening the provider view refreshes once; the view shows PortDeck's last successful health check and a compact manual Refresh action. It preserves the last successful health snapshot on transient command failures. This path is read-only: it does not deploy functions, inspect application data, mutate deployment settings, or write credentials.
 
 The GitHub Actions adapter is also repo-linked and read-only. It accepts only normalized `https://github.com/<owner>/<repo>` values already present on projects and worktrees in the current `portdeck status --json` snapshot, deduplicates worktrees that point to the same repository, and never rescans Git remotes from Swift. GitHub CLI owns authentication; PortDeck checks that session with `gh api user` but never copies, logs, or stores its token.
 
@@ -65,13 +65,13 @@ active local project/worktree snapshot
   -> GitHub CLI authenticated session
   -> repository default branch metadata (five-minute cache)
   -> latest default-branch workflow run per workflow
-  -> 30-second GitHub Actions health snapshot
+  -> GitHub Actions health snapshot on provider-view selection
   -> portdeck-mac GitHub view
 ```
 
 Runtime lookup is deterministic: `PORTDECK_GH_BIN` is an authoritative development/test override, then PortDeck checks the user's login shell and standard Homebrew paths. Repository metadata comes from `GET /repos/{owner}/{repo}`. Workflow health comes from `GET /repos/{owner}/{repo}/actions/runs?branch={default_branch}&per_page=50`; requests are serialized and limited to active local repositories rather than scanning the GitHub account.
 
-Default-branch metadata is cached for about five minutes, while workflow runs poll every 30 seconds only while the GitHub tab is active. Leaving the tab cancels the polling task. Transient CLI/API errors, expired authentication, and rate limits preserve the last successful repository metadata and workflow health and surface an inline degraded warning; they never become failed workflow states. PortDeck honors GitHub rate-limit reset/retry headers before making another request. This path cannot rerun, cancel, dispatch, or modify workflows, repositories, settings, or credentials.
+Default-branch metadata is cached for about five minutes. Selecting or reopening the GitHub provider view performs one workflow-health refresh for the active local repositories, and the compact Refresh action forces a new check. Transient CLI/API errors, expired authentication, and rate limits preserve the last successful repository metadata and workflow health and surface an inline degraded warning; they never become failed workflow states. PortDeck honors GitHub rate-limit reset/retry headers before making another request. This path cannot rerun, cancel, dispatch, or modify workflows, repositories, settings, or credentials.
 
 The Supabase adapter is account-wide and read-only. It reuses the Supabase CLI's existing authenticated session and invokes only `supabase projects list --output-format json`, which lists projects accessible to that account without reading application tables or other project data. PortDeck decodes only the project reference, name, organization identifiers, region, platform status, and optional creation timestamp. It never copies, logs, renders, or persists the CLI access token.
 
@@ -80,7 +80,7 @@ Supabase account
   -> Supabase CLI authenticated session
   -> `supabase projects list --output-format json`
   -> normalized account project status
-  -> 60-second Supabase snapshot
+  -> Supabase snapshot on provider-view selection
   -> portdeck-mac Supabase view
 ```
 
@@ -88,7 +88,7 @@ Supabase accepts CLI versions `>=2.109.1 <3.0.0`. The override is `PORTDECK_SUPA
 
 The CLI process runs from a neutral temporary directory with `SUPABASE_TELEMETRY_DISABLED=1`, so the account-wide command does not inspect a linked project's Supabase directory or emit CLI analytics.
 
-The Supabase view polls immediately when selected and every 60 seconds afterward. Leaving or hiding the tab cancels its polling task, while manual refresh starts an immediate fetch. Successful responses replace the snapshot, including a legitimate empty project list. Missing or unsupported CLIs, expired authentication, rate limits, malformed output, and transient CLI failures retain the last successful snapshot and show an inline degraded warning. This path cannot create, delete, link, pause, restore, configure, migrate, query, deploy, or otherwise modify Supabase projects, databases, schemas, data, auth, storage, functions, secrets, branches, or credentials.
+The Supabase view refreshes once when selected or reopened, while its compact manual Refresh action starts an immediate fetch. Successful responses replace the snapshot, including a legitimate empty project list. Missing or unsupported CLIs, expired authentication, rate limits, malformed output, and transient CLI failures retain the last successful snapshot and show an inline degraded warning. This path cannot create, delete, link, pause, restore, configure, migrate, query, deploy, or otherwise modify Supabase projects, databases, schemas, data, auth, storage, functions, secrets, branches, or credentials.
 
 The Cloudflare adapter combines account-wide Pages visibility with repo-linked Workers. A supported Wrangler CLI owns authentication and PortDeck invokes only `whoami --json`, Pages project and production-deployment list commands, and Worker deployment list/status commands. The current Pages JSON format is a presentation contract rather than the raw API object, so PortDeck deliberately renders only project names, domains, Git-provider flags, relative modification/status values, deployment IDs, branch, short commit SHA, deployment URL, and the CLI-provided dashboard URL. It does not invent production branches, commit messages, exact timestamps, or raw stage values that Wrangler omits.
 
@@ -98,13 +98,13 @@ Wrangler authenticated accounts
 active local project/worktree snapshot
   -> top-level Wrangler name/account_id candidate resolution
   -> account-scoped Worker deployment list + status
-  -> independent 60-second Pages and Workers snapshots
+  -> independent Pages and Workers snapshots on provider-view selection
   -> portdeck-mac Cloudflare view
 ```
 
 Wrangler accepts versions `>=4.111.0 <5.0.0`. The override is `PORTDECK_WRANGLER_BIN`. Commands run in a private PortDeck temporary directory with telemetry and error reporting disabled, log sanitization enabled, and Wrangler's default log level preserved because Pages emits its structured JSON through that logger; PortDeck captures stderr separately and discards it after successful commands. PortDeck never searches monitored repos for Wrangler, reads credential stores, exports a token, or starts login.
 
-Pages status is limited to successful relative-time output, active deployment work, failures, cancellations, and unknown future values. Workers expose active traffic and percentage-split gradual rollouts, not general runtime health or a paused state. Unscoped Workers are queried only when exactly one authenticated account exists; multiple accounts produce an explicit ambiguous state without guessing or polling. Pages and Workers preserve last-good data independently across rate limits, expired auth, malformed output, and transient command failures. The adapter never reads payloads, logs, secrets, bindings, routes, zones, DNS, analytics, D1, KV, R2, Queues, Durable Objects, Containers, or application data, and it cannot modify any Cloudflare resource.
+Pages status is limited to successful relative-time output, active deployment work, failures, cancellations, and unknown future values. Workers expose active traffic and percentage-split gradual rollouts, not general runtime health or a paused state. Unscoped Workers are queried only when exactly one authenticated account exists; multiple accounts produce an explicit ambiguous state without guessing or refreshing. Pages and Workers preserve last-good data independently across rate limits, expired auth, malformed output, and transient command failures. The adapter never reads payloads, logs, secrets, bindings, routes, zones, DNS, analytics, D1, KV, R2, Queues, Durable Objects, Containers, or application data, and it cannot modify any Cloudflare resource.
 
 The Railway adapter is account-wide and strictly read-only. A supported Railway CLI owns authentication. PortDeck checks the existing session with `railway whoami --json`, lists accessible projects and workspaces once with `railway list --json`, then requests production services with explicit project and environment scopes. A single `railway deployment list ... --limit 1 --json` request per service enriches the latest deployment with whitelisted branch and commit metadata when present.
 
@@ -114,14 +114,14 @@ Railway CLI authenticated session
   -> scoped production `railway service list`
   -> scoped latest `railway deployment list --limit 1`
   -> independently retained project/service snapshots
-  -> 60-second portdeck-mac Railway view
+  -> portdeck-mac Railway view refreshed on selection
 ```
 
 Railway accepts versions `>=5.26.2 <6.0.0`. The override is `PORTDECK_RAILWAY_BIN`. Commands run from a private PortDeck directory with `RAILWAY_NO_TELEMETRY=1` and `DO_NOT_TRACK=1`; inherited `RAILWAY_TOKEN` and `RAILWAY_API_TOKEN` values are removed so PortDeck uses only the Railway CLI-owned user session.
 
 The adapter decodes project/workspace identity, production environment identity, services, current/latest deployment state and time, whitelisted branch/commit metadata, replica/region summaries, and public HTTPS URLs. It ignores email, variables, volumes, application configuration, private networking, logs, metrics, and unrelated deployment metadata. `railway status` and `railway service status` are not polling commands because their broader or redundant payloads are unnecessary. Scoped requests share a four-command concurrency limit. Partial failures preserve unaffected projects and prior service metadata, while projects without production remain visible with an explicit unavailable state.
 
-Railway polls immediately and every 60 seconds only while selected and visible. Leaving or hiding the tab cancels its owner task, automatic overlap is rejected, and manual refresh bypasses the timer. The provider cannot deploy, redeploy, restart, link, unlink, configure, scale, delete, open shells, read logs or variables, or modify Railway resources, local CLI context, credentials, or monitored projects.
+Railway refreshes once when its provider view is selected or reopened. Automatic overlap is rejected, and the compact manual Refresh action starts an immediate fetch. The provider cannot deploy, redeploy, restart, link, unlink, configure, scale, delete, open shells, read logs or variables, or modify Railway resources, local CLI context, credentials, or monitored projects.
 
 The Fly.io adapter is account-wide and strictly read-only. PortDeck accepts flyctl `>=0.4.71 <0.5.0` for Darwin, checks only whether the CLI-owned session succeeds, lists organizations and apps once, then enriches each app through explicitly scoped status and release commands. All app-scoped commands share one four-command concurrency limit.
 
@@ -132,7 +132,7 @@ flyctl authenticated session
   -> scoped `flyctl status --app <name> --json`
   -> scoped `flyctl releases --app <name> --json`
   -> retained app/Machine/check/release snapshots
-  -> 60-second portdeck-mac Fly.io view
+  -> portdeck-mac Fly.io view refreshed on selection
 ```
 
 The flyctl override is `PORTDECK_FLY_BIN`. PortDeck never downloads flyctl at runtime or looks in monitored repositories.
@@ -150,7 +150,7 @@ Netlify CLI authenticated session
   -> `netlify sites:list --json`
   -> scoped `netlify api listSiteDeploys --data {site_id, production: true, per_page: 1}`
   -> retained site/latest-production-deployment snapshots
-  -> 60-second portdeck-mac Netlify view
+  -> portdeck-mac Netlify view refreshed on selection
 ```
 
 The Netlify override is `PORTDECK_NETLIFY_BIN`. PortDeck never downloads Netlify CLI at runtime or searches monitored repositories.
@@ -167,12 +167,12 @@ The Hostinger adapter is account-wide and strictly read-only. PortDeck accepts t
 Hostinger CLI-owned config or existing OAuth session
   -> `hostinger hosting websites list --page N --per-page 100 --format json`
   -> complete account website membership and enabled state
-  -> 60-second portdeck-mac Hostinger snapshot
+  -> portdeck-mac Hostinger snapshot refreshed on selection
 ```
 
 The override is `PORTDECK_HOSTINGER_BIN`. PortDeck resolves `hostinger` through the shared external-CLI order and never downloads it or searches monitored repositories. It passes the user's standard `.hostinger.yaml` path explicitly so the CLI can use its own configuration without PortDeck reading the file and without triggering the CLI's legacy-config migration.
 
-Hostinger CLI 3.7 can launch an interactive OAuth browser flow from an ordinary API command when no usable authentication exists. Provider polling must never initiate that flow or create authentication state. PortDeck removes inherited Hostinger token, API endpoint, and OAuth issuer variables, replaces the OAuth issuer with a non-listening loopback endpoint, and runs from a private neutral directory. A configured CLI token or still-valid CLI-owned OAuth access token can satisfy the request; missing or refresh-required authentication fails closed and surfaces the copyable `hostinger hosting websites list --format json` Terminal command for the user to run directly.
+Hostinger CLI 3.7 can launch an interactive OAuth browser flow from an ordinary API command when no usable authentication exists. Provider refreshes must never initiate that flow or create authentication state. PortDeck removes inherited Hostinger token, API endpoint, and OAuth issuer variables, replaces the OAuth issuer with a non-listening loopback endpoint, and runs from a private neutral directory. A configured CLI token or still-valid CLI-owned OAuth access token can satisfy the request; missing or refresh-required authentication fails closed and surfaces the copyable `hostinger hosting websites list --format json` Terminal command for the user to run directly.
 
 Website pagination uses 100 rows per page, requires stable `current_page`, `per_page`, and `total` metadata, rejects duplicates or early termination, and caps an authoritative snapshot at 10,000 websites. PortDeck decodes only domain, enabled state, hosting order ID, parent domain, virtual-host type, and creation time. It ignores client identity, username, root-directory data, and every unrelated Hostinger API surface. **Enabled** means the hosting website is enabled in Hostinger; it is not an uptime or runtime-health claim. The adapter cannot create or delete websites, deploy builds, change hosting configuration, read files/logs/secrets/databases, manage domains/DNS/VPS/billing, open interactive authentication, or mutate credentials, CLI context, monitored projects, or remote resources.
 
@@ -194,7 +194,7 @@ Provider tab visibility and ordering belong to an app-owned configuration model 
 
 The provider configuration model keeps selection as runtime state, while the Mac view persists the last selected provider tab separately. Fresh installs default to Local. On relaunch, a still-visible provider is restored; a hidden or unavailable provider falls back to the first visible provider. Hidden providers are omitted from tabs and command-palette source actions. The removed legacy `projects` selection falls back to Local.
 
-All provider models remain app-owned above the tab view, so changing tab order does not recreate clients or discard last-good snapshots. Polling is keyed only to the selected top-level tab: Local uses its five-second discovery loop, and Vercel, Convex, GitHub, Supabase, Cloudflare, Railway, Fly.io, Netlify, and Hostinger retain their provider-specific cadences. Hiding or leaving a provider cancels its polling task. Convex, GitHub, and Cloudflare Workers use the last available local status snapshot until Local refreshes it again; account-wide Supabase, Cloudflare Pages, Railway, Fly.io, Netlify, and Hostinger do not depend on local discovery.
+All provider models remain app-owned above the tab view, so changing tab order does not recreate clients or discard last-good snapshots. Local keeps its five-second discovery loop while selected. Selecting or reopening any remote provider view performs one complete refresh and then stops; the per-view last-checked control provides an immediate manual refresh. Convex, GitHub, and Cloudflare Workers use the last available local status snapshot until Local refreshes it again; account-wide Supabase, Cloudflare Pages, Railway, Fly.io, Netlify, and Hostinger do not depend on local discovery. Future background state-change notifications require a separate opt-in monitoring lifecycle and must not reuse provider-view refresh tasks.
 
 Local retains its last successful decoded status and raw JSON when a later discovery command fails. The last-successful timestamp advances only after a valid snapshot, while a bounded credential-redacted error marks the retained view as degraded. Successful refreshes preserve the existing project, worktree, service, and unknown-service order for still-present identities so five-second polling does not cause avoidable row movement; newly discovered identities append in discovery order.
 

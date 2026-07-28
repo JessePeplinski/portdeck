@@ -3,9 +3,6 @@ import PortDeckCore
 
 @MainActor
 final class HostingerStatusModel: ObservableObject {
-  nonisolated static let refreshIntervalSeconds = 60
-  private static let refreshInterval = Duration.seconds(refreshIntervalSeconds)
-
   @Published private(set) var connectionState: HostingerConnectionState = .checking
   @Published private(set) var websites: [HostingerWebsite] = []
   @Published private(set) var errorMessage: String?
@@ -14,38 +11,20 @@ final class HostingerStatusModel: ObservableObject {
   @Published private(set) var isRetainingSnapshot = false
 
   private let client: any HostingerCLIClientProtocol
-  private let pollInterval: Duration
   private let now: @Sendable () -> Date
   private var refreshTask: Task<Void, Never>?
   private var refreshGeneration = 0
 
   init(
     client: any HostingerCLIClientProtocol = HostingerCLIClient(),
-    pollInterval: Duration = HostingerStatusModel.refreshInterval,
     now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.client = client
-    self.pollInterval = pollInterval
     self.now = now
   }
 
   var showsHeaderProgress: Bool {
     isRefreshing
-  }
-
-  func runAutoRefresh() async {
-    await refresh()
-    while !Task.isCancelled {
-      do {
-        try await Task.sleep(for: pollInterval)
-      } catch {
-        return
-      }
-      guard !Task.isCancelled else {
-        return
-      }
-      await refresh()
-    }
   }
 
   func refresh() async {

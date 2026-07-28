@@ -3,17 +3,16 @@ import PortDeckCore
 import Testing
 @testable import PortDeckMac
 
-@Test func usesTwoSecondPollingAndPresentsOnlyTheLastCheckedAge() {
-  #expect(VercelStatusModel.deploymentRefreshIntervalSeconds == 2)
-  #expect(vercelLastCheckedLabel(ageSeconds: 1) == "Checked 1s ago")
+@Test func presentsTheSharedLastCheckedAge() {
+  #expect(refreshLastCheckedLabel(ageSeconds: 1) == "Checked 1s ago")
 
   let lastUpdated = Date(timeIntervalSince1970: 100)
-  #expect(vercelPollingAgeSeconds(lastUpdated: lastUpdated, relativeTo: lastUpdated) == 0)
-  #expect(vercelPollingAgeSeconds(
+  #expect(refreshAgeSeconds(lastUpdated: lastUpdated, relativeTo: lastUpdated) == 0)
+  #expect(refreshAgeSeconds(
     lastUpdated: lastUpdated,
     relativeTo: Date(timeIntervalSince1970: 101.9)
   ) == 1)
-  #expect(vercelPollingAgeSeconds(
+  #expect(refreshAgeSeconds(
     lastUpdated: lastUpdated,
     relativeTo: Date(timeIntervalSince1970: 99)
   ) == 0)
@@ -96,7 +95,7 @@ import Testing
 }
 
 @MainActor
-@Test func preservesLastGoodMergedUIAfterDeploymentPollingFailure() async {
+@Test func preservesLastGoodMergedUIAfterDeploymentRefreshFailure() async {
   let client = FakeVercelClient(
     connectionStates: [.connected],
     projectResults: [.success(snapshot(projects: [readyProject()]))],

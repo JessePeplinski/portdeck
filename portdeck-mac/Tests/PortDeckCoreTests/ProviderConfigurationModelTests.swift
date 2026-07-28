@@ -76,7 +76,6 @@ import Testing
 
   #expect(model.setVisible(false, for: .github))
   #expect(model.selectedProvider == .local)
-  #expect(model.pollingProvider == .local)
 }
 
 @MainActor
@@ -165,51 +164,49 @@ import Testing
 }
 
 @MainActor
-@Test func hiddenProvidersCannotBecomePollingTargetsAndLocalIsSelectedOnly() {
+@Test func hiddenProvidersCannotBecomeSelectedRefreshTargets() {
   let model = ProviderConfigurationModel(userDefaults: makeProviderDefaults())
-  #expect(model.shouldPoll(.local))
+  #expect(model.selectedProvider == .local)
 
   #expect(model.setVisible(false, for: .local))
-  #expect(!model.shouldPoll(.local))
-  #expect(model.shouldPoll(.vercel))
+  #expect(model.selectedProvider == .vercel)
 
   model.select(.local)
   #expect(model.selectedProvider == .vercel)
-  #expect(!model.shouldPoll(.local))
 
   model.select(.supabase)
-  #expect(model.shouldPoll(.supabase))
+  #expect(model.selectedProvider == .supabase)
   #expect(model.setVisible(false, for: .supabase))
-  #expect(!model.shouldPoll(.supabase))
+  #expect(model.selectedProvider != .supabase)
 
   model.select(.cloudflare)
-  #expect(model.shouldPoll(.cloudflare))
+  #expect(model.selectedProvider == .cloudflare)
   #expect(model.setVisible(false, for: .cloudflare))
-  #expect(!model.shouldPoll(.cloudflare))
+  #expect(model.selectedProvider != .cloudflare)
 
   model.select(.railway)
-  #expect(model.shouldPoll(.railway))
+  #expect(model.selectedProvider == .railway)
   #expect(model.setVisible(false, for: .railway))
-  #expect(!model.shouldPoll(.railway))
+  #expect(model.selectedProvider != .railway)
 
   model.select(.fly)
-  #expect(model.shouldPoll(.fly))
+  #expect(model.selectedProvider == .fly)
   #expect(model.setVisible(false, for: .fly))
-  #expect(!model.shouldPoll(.fly))
+  #expect(model.selectedProvider != .fly)
 
   model.select(.netlify)
-  #expect(model.shouldPoll(.netlify))
+  #expect(model.selectedProvider == .netlify)
   #expect(model.setVisible(false, for: .netlify))
-  #expect(!model.shouldPoll(.netlify))
+  #expect(model.selectedProvider != .netlify)
 
   model.select(.hostinger)
-  #expect(model.shouldPoll(.hostinger))
+  #expect(model.selectedProvider == .hostinger)
   #expect(model.setVisible(false, for: .hostinger))
-  #expect(!model.shouldPoll(.hostinger))
+  #expect(model.selectedProvider != .hostinger)
 }
 
 @MainActor
-@Test func reorderingPreservesPollingSelectionAndProviderModelIdentity() {
+@Test func reorderingPreservesSelectionAndProviderModelIdentity() {
   let configuration = ProviderConfigurationModel(userDefaults: makeProviderDefaults())
   let providerModel = NetlifyStatusModel()
   let providerIdentity = ObjectIdentifier(providerModel)
@@ -218,7 +215,7 @@ import Testing
   configuration.select(.netlify)
   #expect(configuration.moveDown(.local))
 
-  #expect(configuration.pollingProvider == .netlify)
+  #expect(configuration.selectedProvider == .netlify)
   #expect(ObjectIdentifier(providerModel) == providerIdentity)
   #expect(providerModel.sites.count == snapshotCount)
 }

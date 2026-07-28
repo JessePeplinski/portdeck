@@ -3,9 +3,6 @@ import PortDeckCore
 
 @MainActor
 final class CloudflareStatusModel: ObservableObject {
-  nonisolated static let refreshIntervalSeconds = 60
-  private static let refreshInterval = Duration.seconds(refreshIntervalSeconds)
-
   @Published private(set) var connectionState: CloudflareConnectionState = .checking
   @Published private(set) var accounts: [CloudflareAccount] = []
   @Published private(set) var pagesProjects: [CloudflarePagesProject] = []
@@ -19,32 +16,31 @@ final class CloudflareStatusModel: ObservableObject {
 
   private let client: any CloudflareCLIClientProtocol
   private let candidateResolver: any CloudflareProjectCandidateResolving
-  private let pollInterval: Duration
   private let now: @Sendable () -> Date
 
   init(
     client: any CloudflareCLIClientProtocol = CloudflareCLIClient(),
     candidateResolver: any CloudflareProjectCandidateResolving = CloudflareProjectCandidateResolver(),
-    pollInterval: Duration = CloudflareStatusModel.refreshInterval,
     now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.client = client
     self.candidateResolver = candidateResolver
-    self.pollInterval = pollInterval
     self.now = now
   }
 
   var showsHeaderProgress: Bool { isRefreshing }
   var resourceCount: Int { pagesProjects.count + workers.count }
   var hasRetainedData: Bool { !pagesProjects.isEmpty || !workers.isEmpty }
-
-  func runAutoRefresh(status: PortdeckStatus?) async {
-    await refresh(status: status)
-    while !Task.isCancelled {
-      do { try await Task.sleep(for: pollInterval) }
-      catch { return }
-      guard !Task.isCancelled else { return }
-      await refresh(status: status)
+  var lastSuccessfulRefreshAt: Date? {
+    switch (lastSuccessfulPagesRefreshAt, lastSuccessfulWorkersRefreshAt) {
+    case (.some(let pages), .some(let workers)):
+      return min(pages, workers)
+    case (.some(let pages), nil):
+      return pages
+    case (nil, .some(let workers)):
+      return workers
+    case (nil, nil):
+      return nil
     }
   }
 

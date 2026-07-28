@@ -20,11 +20,11 @@ Add an account-wide Hostinger provider to PortDeck using only the user's install
 - Never invoke any Hostinger command except `version` and the paginated website list.
 - Pass the standard `.hostinger.yaml` path explicitly; PortDeck must not read or copy the config file.
 - Strip inherited `HOSTINGER_API_TOKEN`, `HOSTINGER_API_URL`, `HAPI_API_TOKEN`, `HAPI_API_URL`, and `HOSTINGER_OAUTH_ISSUER`.
-- Disable the automatic interactive OAuth path during polling with a non-listening loopback issuer. Authentication that requires a browser or refresh must fail closed and send the user to Terminal.
+- Disable the automatic interactive OAuth path during refreshes with a non-listening loopback issuer. Authentication that requires a browser or refresh must fail closed and send the user to Terminal.
 - Decode only domain, enabled state, hosting order ID, parent domain, virtual-host type, and creation time.
 - Treat enabled/disabled as Hostinger configuration state, not website uptime or health.
 - Require complete, stable pagination and preserve the last successful snapshot on malformed, partial, rate-limited, authentication, or transient failures.
-- Poll immediately and every 60 seconds only while Hostinger is selected and visible; cancel on hide, leave, or app disappearance.
+- Refresh once when Hostinger is selected or reopened, expose a manual per-view refresh, and cancel an in-flight request on hide, leave, or app disappearance.
 - Do not access files, logs, databases, secrets, usernames, root directories, domains, DNS, VPS, billing, deployments, or any mutation command.
 
 ## Verification

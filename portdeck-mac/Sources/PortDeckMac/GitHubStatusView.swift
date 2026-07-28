@@ -9,11 +9,27 @@ struct GitHubStatusView: View {
 
   var body: some View {
     if model.candidates.isEmpty {
-      emptyState(
-        systemImage: "arrow.triangle.branch",
-        title: "No active GitHub repositories",
-        detail: "Start a local service from a project with a supported GitHub remote to see its default-branch CI here."
-      )
+      VStack(alignment: .leading, spacing: 10) {
+        HStack {
+          Label("Default branch CI", systemImage: "checkmark.circle")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+          Spacer()
+          RefreshStatusControl(
+            sourceName: "GitHub",
+            lastUpdated: model.lastSuccessfulRefreshAt,
+            isRefreshing: model.isRefreshing,
+            hasError: model.errorMessage != nil,
+            onRefresh: onRefresh
+          )
+        }
+        .padding(.horizontal, 2)
+        emptyState(
+          systemImage: "arrow.triangle.branch",
+          title: "No active GitHub repositories",
+          detail: "Start a local service from a project with a supported GitHub remote to see its default-branch CI here."
+        )
+      }
     } else if model.repositories.isEmpty && model.isRefreshing {
       loadingState(title: "Checking GitHub Actions health")
     } else if model.repositories.isEmpty {
@@ -90,13 +106,13 @@ struct GitHubStatusView: View {
         .font(.caption)
         .foregroundStyle(.secondary)
       Spacer()
-      if let lastUpdated = model.lastSuccessfulRefreshAt {
-        GitHubPollingStatus(lastUpdated: lastUpdated, hasError: model.errorMessage != nil)
-      } else {
-        Text("Every \(GitHubStatusModel.refreshIntervalSeconds)s")
-          .font(.caption)
-          .foregroundStyle(.tertiary)
-      }
+      RefreshStatusControl(
+        sourceName: "GitHub",
+        lastUpdated: model.lastSuccessfulRefreshAt,
+        isRefreshing: model.isRefreshing,
+        hasError: model.errorMessage != nil,
+        onRefresh: onRefresh
+      )
     }
     .padding(.horizontal, 2)
 
@@ -224,31 +240,6 @@ private struct GitHubInlineWarning: View {
     }
     .padding(9)
     .background(.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
-  }
-}
-
-private struct GitHubPollingStatus: View {
-  let lastUpdated: Date
-  let hasError: Bool
-
-  var body: some View {
-    TimelineView(.periodic(from: .now, by: 1)) { context in
-      let age = githubPollingAgeSeconds(lastUpdated: lastUpdated, relativeTo: context.date)
-      HStack(spacing: 4) {
-        Circle()
-          .fill(hasError ? Color.orange : Color.green)
-          .frame(width: 6, height: 6)
-        Text(githubLastCheckedLabel(ageSeconds: age))
-          .font(.caption)
-          .foregroundStyle(.tertiary)
-          .monospacedDigit()
-      }
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(
-        "GitHub Actions checks every \(GitHubStatusModel.refreshIntervalSeconds) seconds. Last successful check \(age) seconds ago."
-      )
-      .help("GitHub Actions checks every \(GitHubStatusModel.refreshIntervalSeconds) seconds while this tab is open.")
-    }
   }
 }
 
@@ -404,14 +395,6 @@ private struct GitHubWorkflowRow: View {
     case .unknown: return .secondary
     }
   }
-}
-
-func githubPollingAgeSeconds(lastUpdated: Date, relativeTo now: Date) -> Int {
-  max(0, Int(now.timeIntervalSince(lastUpdated)))
-}
-
-func githubLastCheckedLabel(ageSeconds: Int) -> String {
-  "Checked \(max(0, ageSeconds))s ago · every \(GitHubStatusModel.refreshIntervalSeconds)s"
 }
 
 func workflowDetailLabel(_ workflow: GitHubWorkflowRun) -> String {

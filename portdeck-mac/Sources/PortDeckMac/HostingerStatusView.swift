@@ -10,7 +10,7 @@ struct HostingerStatusView: View {
   var body: some View {
     if model.websites.isEmpty && model.isRefreshing {
       loadingState
-    } else if model.websites.isEmpty {
+    } else if model.websites.isEmpty && model.connectionState != .connected {
       emptyOrSetupState
     } else {
       connectedContent
@@ -50,7 +50,7 @@ struct HostingerStatusView: View {
       setupState(
         systemImage: "person.crop.circle.badge.exclamationmark",
         title: "Hostinger authentication required",
-        detail: "Run the read-only website command in Terminal to connect the official CLI. PortDeck blocks interactive sign-in during background polling and never receives or stores your token.",
+        detail: "Run the read-only website command in Terminal to connect the official CLI. PortDeck blocks interactive sign-in during automatic refreshes and never receives or stores your token.",
         actionTitle: "Copy connect command",
         actionSystemImage: "doc.on.doc",
         action: { copyCommand(HostingerCLIClient.connectCommand) },
@@ -88,13 +88,13 @@ struct HostingerStatusView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
         Spacer()
-        if let lastUpdated = model.lastSuccessfulRefreshAt {
-          pollingStatus(lastUpdated: lastUpdated)
-        } else {
-          Text("Every \(HostingerStatusModel.refreshIntervalSeconds)s")
-            .font(.caption)
-            .foregroundStyle(.tertiary)
-        }
+        RefreshStatusControl(
+          sourceName: "Hostinger",
+          lastUpdated: model.lastSuccessfulRefreshAt,
+          isRefreshing: model.isRefreshing,
+          hasError: model.errorMessage != nil,
+          onRefresh: onRefresh
+        )
       }
       .padding(.horizontal, 2)
 
@@ -158,23 +158,6 @@ struct HostingerStatusView: View {
     }
     .padding(9)
     .background(.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
-  }
-
-  private func pollingStatus(lastUpdated: Date) -> some View {
-    TimelineView(.periodic(from: .now, by: 1)) { context in
-      let age = max(0, Int(context.date.timeIntervalSince(lastUpdated)))
-      HStack(spacing: 4) {
-        Circle()
-          .fill(model.errorMessage == nil ? Color.green : Color.orange)
-          .frame(width: 6, height: 6)
-        Text("Checked \(age)s ago")
-          .font(.caption)
-          .foregroundStyle(.tertiary)
-          .monospacedDigit()
-      }
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel("Hostinger last successful check \(age) seconds ago.")
-    }
   }
 
   private func setupState(

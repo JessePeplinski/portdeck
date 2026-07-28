@@ -10,7 +10,7 @@ struct CloudflareStatusView: View {
   var body: some View {
     if model.resourceCount == 0 && model.isRefreshing {
       loadingState
-    } else if model.resourceCount == 0 {
+    } else if model.resourceCount == 0 && model.connectionState != .connected {
       emptyOrSetupState
     } else {
       connectedContent
@@ -88,6 +88,21 @@ struct CloudflareStatusView: View {
         inlineWarning(title: "Workers refresh degraded", message: workersError)
       }
 
+      HStack {
+        Label("Cloudflare resources", systemImage: "cloud.fill")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        Spacer()
+        RefreshStatusControl(
+          sourceName: "Cloudflare",
+          lastUpdated: model.lastSuccessfulRefreshAt,
+          isRefreshing: model.isRefreshing,
+          hasError: model.pagesErrorMessage != nil || model.workersErrorMessage != nil,
+          onRefresh: onRefresh
+        )
+      }
+      .padding(.horizontal, 2)
+
       let pages = model.filteredPages(matching: searchText)
       let workers = model.filteredWorkers(matching: searchText)
       if pages.isEmpty && workers.isEmpty {
@@ -100,18 +115,14 @@ struct CloudflareStatusView: View {
         if !pages.isEmpty {
           sectionHeader(
             title: "Pages",
-            count: pages.count,
-            lastUpdated: model.lastSuccessfulPagesRefreshAt,
-            hasError: model.pagesErrorMessage != nil
+            count: pages.count
           )
           ForEach(pages) { project in CloudflarePagesRow(project: project) }
         }
         if !workers.isEmpty {
           sectionHeader(
             title: "Workers",
-            count: workers.count,
-            lastUpdated: model.lastSuccessfulWorkersRefreshAt,
-            hasError: model.workersErrorMessage != nil
+            count: workers.count
           )
           ForEach(workers) { worker in CloudflareWorkerRow(worker: worker) }
         }
@@ -130,19 +141,11 @@ struct CloudflareStatusView: View {
     .padding(.vertical, 34)
   }
 
-  private func sectionHeader(title: String, count: Int, lastUpdated: Date?, hasError: Bool) -> some View {
+  private func sectionHeader(title: String, count: Int) -> some View {
     HStack {
       Label("\(title) · \(count)", systemImage: title == "Pages" ? "doc.on.globe" : "cloud.fill")
         .font(.caption)
         .foregroundStyle(.secondary)
-      Spacer()
-      if let lastUpdated {
-        CloudflarePollingStatus(lastUpdated: lastUpdated, hasError: hasError, title: title)
-      } else {
-        Text("Every \(CloudflareStatusModel.refreshIntervalSeconds)s")
-          .font(.caption)
-          .foregroundStyle(.tertiary)
-      }
     }
     .padding(.horizontal, 2)
   }
@@ -335,24 +338,6 @@ private struct CloudflareResourceCard<Content: View>: View {
     case .failed: return .red
     case .canceled: return .yellow
     case .unknown: return .secondary
-    }
-  }
-}
-
-private struct CloudflarePollingStatus: View {
-  let lastUpdated: Date
-  let hasError: Bool
-  let title: String
-
-  var body: some View {
-    TimelineView(.periodic(from: .now, by: 1)) { context in
-      let age = max(0, Int(context.date.timeIntervalSince(lastUpdated)))
-      HStack(spacing: 4) {
-        Circle().fill(hasError ? Color.orange : Color.green).frame(width: 6, height: 6)
-        Text("Checked \(age)s ago").font(.caption).foregroundStyle(.tertiary).monospacedDigit()
-      }
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel("Cloudflare \(title) last successful check \(age) seconds ago.")
     }
   }
 }

@@ -3,9 +3,6 @@ import PortDeckCore
 
 @MainActor
 final class SupabaseStatusModel: ObservableObject {
-  nonisolated static let refreshIntervalSeconds = 60
-  private static let refreshInterval = Duration.seconds(refreshIntervalSeconds)
-
   @Published private(set) var connectionState: SupabaseConnectionState = .checking
   @Published private(set) var projects: [SupabaseProject] = []
   @Published private(set) var errorMessage: String?
@@ -13,33 +10,17 @@ final class SupabaseStatusModel: ObservableObject {
   @Published private(set) var lastSuccessfulRefreshAt: Date?
 
   private let client: any SupabaseCLIClientProtocol
-  private let pollInterval: Duration
   private let now: @Sendable () -> Date
 
   init(
     client: any SupabaseCLIClientProtocol = SupabaseCLIClient(),
-    pollInterval: Duration = SupabaseStatusModel.refreshInterval,
     now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.client = client
-    self.pollInterval = pollInterval
     self.now = now
   }
 
   var showsHeaderProgress: Bool { isRefreshing }
-
-  func runAutoRefresh() async {
-    await refreshProjects()
-    while !Task.isCancelled {
-      do {
-        try await Task.sleep(for: pollInterval)
-      } catch {
-        return
-      }
-      guard !Task.isCancelled else { return }
-      await refreshProjects()
-    }
-  }
 
   func refresh() async {
     await refreshProjects()

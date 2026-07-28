@@ -84,26 +84,20 @@ import Testing
 }
 
 @MainActor
-@Test func railwayModelRejectsOverlappingRefreshesAndPollsImmediatelyUntilCancelled() async throws {
+@Test func railwayModelRejectsOverlappingOneShotRefreshes() async throws {
   let client = FakeRailwayClient(
-    results: Array(repeating: .success(RailwaySnapshotResult(projects: [], successfulProjectIDs: [])), count: 20),
+    results: [.success(RailwaySnapshotResult(projects: [], successfulProjectIDs: []))],
     delay: .milliseconds(20)
   )
-  let model = RailwayStatusModel(client: client, pollInterval: .milliseconds(5))
+  let model = RailwayStatusModel(client: client)
 
   async let first: Void = model.refresh()
   async let second: Void = model.refresh()
   _ = await (first, second)
   #expect(await client.callCount == 1)
 
-  let pollTask = Task { await model.runAutoRefresh() }
-  try await Task.sleep(for: .milliseconds(58))
-  pollTask.cancel()
-  _ = await pollTask.result
-  let countAfterCancel = await client.callCount
-  #expect(countAfterCancel >= 3)
   try await Task.sleep(for: .milliseconds(30))
-  #expect(await client.callCount == countAfterCancel)
+  #expect(await client.callCount == 1)
 }
 
 @MainActor

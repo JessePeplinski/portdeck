@@ -3,17 +3,16 @@ import PortDeckCore
 import Testing
 @testable import PortDeckMac
 
-@Test func usesMinuteConvexPollingAndPresentsLastCheckedAge() {
-  #expect(ConvexStatusModel.refreshIntervalSeconds == 60)
-  #expect(convexLastCheckedLabel(ageSeconds: 4) == "Checked 4s ago")
+@Test func presentsConvexWithTheSharedLastCheckedAge() {
+  #expect(refreshLastCheckedLabel(ageSeconds: 4) == "Checked 4s ago")
 
   let lastUpdated = Date(timeIntervalSince1970: 100)
-  #expect(convexPollingAgeSeconds(lastUpdated: lastUpdated, relativeTo: lastUpdated) == 0)
-  #expect(convexPollingAgeSeconds(
+  #expect(refreshAgeSeconds(lastUpdated: lastUpdated, relativeTo: lastUpdated) == 0)
+  #expect(refreshAgeSeconds(
     lastUpdated: lastUpdated,
     relativeTo: Date(timeIntervalSince1970: 104.9)
   ) == 4)
-  #expect(convexPollingAgeSeconds(
+  #expect(refreshAgeSeconds(
     lastUpdated: lastUpdated,
     relativeTo: Date(timeIntervalSince1970: 99)
   ) == 0)

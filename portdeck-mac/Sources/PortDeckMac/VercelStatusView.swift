@@ -5,6 +5,7 @@ import SwiftUI
 struct VercelStatusView: View {
   @ObservedObject var model: VercelStatusModel
   let searchText: String
+  let onRefresh: () -> Void
 
   var body: some View {
     switch model.connectionState {
@@ -18,7 +19,9 @@ struct VercelStatusView: View {
         primaryTitle: "Open install guide",
         primarySystemImage: "arrow.up.forward.square",
         primaryAction: openVercelCLIDocumentation,
-        command: VercelCLIClient.installCommand
+        command: VercelCLIClient.installCommand,
+        secondaryTitle: "Try again",
+        secondaryAction: onRefresh
       )
     case .outdatedCLI(let currentVersion):
       setupState(
@@ -28,7 +31,9 @@ struct VercelStatusView: View {
         primaryTitle: "Open update guide",
         primarySystemImage: "arrow.up.forward.square",
         primaryAction: openVercelCLIDocumentation,
-        command: VercelCLIClient.installCommand
+        command: VercelCLIClient.installCommand,
+        secondaryTitle: "Try again",
+        secondaryAction: onRefresh
       )
     case .unauthenticated:
       setupState(
@@ -52,7 +57,7 @@ struct VercelStatusView: View {
         detail: message,
         primaryTitle: "Try again",
         primarySystemImage: "arrow.clockwise",
-        primaryAction: { Task { await model.refresh() } },
+        primaryAction: onRefresh,
         secondaryTitle: "Copy manual login command",
         secondaryAction: { copyCommand("vercel login") }
       )
@@ -70,12 +75,13 @@ struct VercelStatusView: View {
         .font(.caption)
         .foregroundStyle(.secondary)
       Spacer()
-      if let lastUpdated = model.lastUpdated {
-        VercelLivePollingStatus(
-          lastUpdated: lastUpdated,
-          hasError: model.errorMessage != nil
-        )
-      }
+      RefreshStatusControl(
+        sourceName: "Vercel",
+        lastUpdated: model.lastUpdated,
+        isRefreshing: model.isRefreshing,
+        hasError: model.errorMessage != nil,
+        onRefresh: onRefresh
+      )
     }
     .padding(.horizontal, 2)
 
@@ -190,34 +196,6 @@ struct VercelStatusView: View {
   private func copyCommand(_ command: String) {
     NSPasteboard.general.clearContents()
     NSPasteboard.general.setString(command, forType: .string)
-  }
-}
-
-private struct VercelLivePollingStatus: View {
-  let lastUpdated: Date
-  let hasError: Bool
-
-  var body: some View {
-    TimelineView(.periodic(from: .now, by: 1)) { context in
-      let age = vercelPollingAgeSeconds(lastUpdated: lastUpdated, relativeTo: context.date)
-
-      HStack(spacing: 4) {
-        Circle()
-          .fill(hasError ? Color.orange : Color.green)
-          .frame(width: 6, height: 6)
-        Text(vercelLastCheckedLabel(ageSeconds: age))
-          .font(.caption)
-          .foregroundStyle(.tertiary)
-          .monospacedDigit()
-      }
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(
-        "Live Vercel polling every \(VercelStatusModel.deploymentRefreshIntervalSeconds) seconds. Last successful check \(age) seconds ago."
-      )
-      .help(
-        "Vercel deployment activity checks every \(VercelStatusModel.deploymentRefreshIntervalSeconds) seconds while this tab is open."
-      )
-    }
   }
 }
 
@@ -438,14 +416,6 @@ private func relativeText(for date: Date) -> String {
   let formatter = RelativeDateTimeFormatter()
   formatter.unitsStyle = .abbreviated
   return formatter.localizedString(for: date, relativeTo: Date())
-}
-
-func vercelPollingAgeSeconds(lastUpdated: Date, relativeTo now: Date) -> Int {
-  max(0, Int(now.timeIntervalSince(lastUpdated)))
-}
-
-func vercelLastCheckedLabel(ageSeconds: Int) -> String {
-  "Checked \(max(0, ageSeconds))s ago"
 }
 
 func vercelScopeLabel(_ scope: VercelScope?) -> String {

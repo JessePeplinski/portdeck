@@ -10,7 +10,7 @@ struct NetlifyStatusView: View {
   var body: some View {
     if model.sites.isEmpty && model.isRefreshing {
       loadingState
-    } else if model.sites.isEmpty {
+    } else if model.sites.isEmpty && model.connectionState != .connected {
       emptyOrSetupState
     } else {
       connectedContent
@@ -88,13 +88,13 @@ struct NetlifyStatusView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
         Spacer()
-        if let lastUpdated = model.lastSuccessfulRefreshAt {
-          pollingStatus(lastUpdated: lastUpdated)
-        } else {
-          Text("Every \(NetlifyStatusModel.refreshIntervalSeconds)s")
-            .font(.caption)
-            .foregroundStyle(.tertiary)
-        }
+        RefreshStatusControl(
+          sourceName: "Netlify",
+          lastUpdated: model.lastSuccessfulRefreshAt,
+          isRefreshing: model.isRefreshing,
+          hasError: model.errorMessage != nil,
+          onRefresh: onRefresh
+        )
       }
       .padding(.horizontal, 2)
 
@@ -140,18 +140,6 @@ struct NetlifyStatusView: View {
     }
     .padding(9)
     .background(.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
-  }
-
-  private func pollingStatus(lastUpdated: Date) -> some View {
-    TimelineView(.periodic(from: .now, by: 1)) { context in
-      let age = max(0, Int(context.date.timeIntervalSince(lastUpdated)))
-      HStack(spacing: 4) {
-        Circle().fill(model.errorMessage == nil ? Color.green : Color.orange).frame(width: 6, height: 6)
-        Text("Checked \(age)s ago").font(.caption).foregroundStyle(.tertiary).monospacedDigit()
-      }
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel("Netlify last successful check \(age) seconds ago.")
-    }
   }
 
   private func setupState(

@@ -60,26 +60,6 @@ import Testing
   #expect(await delayed.accountCallCount == 1)
 }
 
-@MainActor
-@Test func pollsCloudflareImmediatelyAndStopsWhenOwningTaskIsCanceled() async {
-  let client = FakeCloudflareClient(
-    accountResponses: Array(repeating: .success([]), count: 20),
-    pagesResponses: Array(repeating: .success(.init(projects: [], successfulAccountIDs: [], failures: [])), count: 20),
-    workerResponses: Array(repeating: .success(.init(resources: [], currentCandidateIDs: [], successfulCandidateIDs: [], failures: [])), count: 20)
-  )
-  let model = CloudflareStatusModel(client: client, pollInterval: .milliseconds(10))
-  let task = Task { await model.runAutoRefresh(status: nil) }
-  for _ in 0..<100 where await client.accountCallCount < 2 {
-    try? await Task.sleep(for: .milliseconds(2))
-  }
-  task.cancel()
-  _ = await task.result
-  let countAfterCancel = await client.accountCallCount
-  try? await Task.sleep(for: .milliseconds(25))
-  #expect(countAfterCancel >= 2)
-  #expect(await client.accountCallCount == countAfterCancel)
-}
-
 private actor FakeCloudflareClient: CloudflareCLIClientProtocol {
   enum Response<Value: Sendable>: Sendable {
     case success(Value)

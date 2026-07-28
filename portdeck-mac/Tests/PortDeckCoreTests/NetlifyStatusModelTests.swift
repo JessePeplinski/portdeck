@@ -67,26 +67,20 @@ import Testing
 }
 
 @MainActor
-@Test func netlifyModelRejectsOverlapPollsAndCancelsOwnerTask() async throws {
+@Test func netlifyModelSharesOverlappingOneShotRefreshesAndCancelsOwnerTask() async throws {
   let client = FakeNetlifyClient(
-    results: Array(repeating: .success(NetlifySnapshotResult(sites: [])), count: 20),
+    results: [.success(NetlifySnapshotResult(sites: []))],
     delay: .milliseconds(20)
   )
-  let model = NetlifyStatusModel(client: client, pollInterval: .milliseconds(5))
+  let model = NetlifyStatusModel(client: client)
 
   async let first: Void = model.refresh()
   async let second: Void = model.refresh()
   _ = await (first, second)
   #expect(await client.callCount == 1)
 
-  let pollTask = Task { await model.runAutoRefresh() }
-  try await Task.sleep(for: .milliseconds(58))
-  pollTask.cancel()
-  _ = await pollTask.result
-  let countAfterCancel = await client.callCount
-  #expect(countAfterCancel >= 3)
   try await Task.sleep(for: .milliseconds(30))
-  #expect(await client.callCount == countAfterCancel)
+  #expect(await client.callCount == 1)
 
   let slowClient = FakeNetlifyClient(
     results: [.success(NetlifySnapshotResult(sites: [netlifyModelSite(state: "ready")]))],

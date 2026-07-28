@@ -3,9 +3,6 @@ import PortDeckCore
 
 @MainActor
 final class RailwayStatusModel: ObservableObject {
-  nonisolated static let refreshIntervalSeconds = 60
-  private static let refreshInterval = Duration.seconds(refreshIntervalSeconds)
-
   @Published private(set) var connectionState: RailwayConnectionState = .checking
   @Published private(set) var projects: [RailwayProject] = []
   @Published private(set) var errorMessage: String?
@@ -13,32 +10,19 @@ final class RailwayStatusModel: ObservableObject {
   @Published private(set) var lastSuccessfulRefreshAt: Date?
 
   private let client: any RailwayCLIClientProtocol
-  private let pollInterval: Duration
   private let now: @Sendable () -> Date
 
   init(
     client: any RailwayCLIClientProtocol = RailwayCLIClient(),
-    pollInterval: Duration = RailwayStatusModel.refreshInterval,
     now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.client = client
-    self.pollInterval = pollInterval
     self.now = now
   }
 
   var showsHeaderProgress: Bool { isRefreshing }
   var serviceCount: Int { projects.reduce(0) { $0 + $1.services.count } }
   var hasRetainedData: Bool { !projects.isEmpty }
-
-  func runAutoRefresh() async {
-    await refresh()
-    while !Task.isCancelled {
-      do { try await Task.sleep(for: pollInterval) }
-      catch { return }
-      guard !Task.isCancelled else { return }
-      await refresh()
-    }
-  }
 
   func refresh() async {
     guard !isRefreshing else { return }

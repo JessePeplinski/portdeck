@@ -41,7 +41,7 @@ Map app `deployed`/`suspended`; Machine `started`/`stopped`/`suspended`/`created
 - Preserve unaffected apps and last-good Machine/check data across scoped status failures. Preserve release enrichment only when its version still matches the current status version.
 - Preserve and visibly label the last-good snapshot during global transient/rate-limit failures.
 - Run no more than four app-scoped commands concurrently.
-- Poll immediately and every 60 seconds only while Fly.io is selected and visible; cancel on hide/leave, reject refresh overlap, and prevent cancelled results from applying.
+- Refresh once when Fly.io is selected or reopened; expose a manual per-view refresh, cancel in-flight work on hide/leave, reject refresh overlap, and prevent cancelled results from applying.
 - Keep the model app-owned so provider reorder cannot discard snapshots. Search is presentation-only.
 - Group apps by organization and show compact app cards/Machine rows, separate check evidence, safe HTTPS app URLs, and dashboard links only as `https://fly.io/apps/<validated-app-name>`.
 

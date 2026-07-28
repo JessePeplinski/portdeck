@@ -3,9 +3,6 @@ import PortDeckCore
 
 @MainActor
 final class FlyStatusModel: ObservableObject {
-  nonisolated static let refreshIntervalSeconds = 60
-  private static let refreshInterval = Duration.seconds(refreshIntervalSeconds)
-
   @Published private(set) var connectionState: FlyConnectionState = .checking
   @Published private(set) var organizations: [FlyOrganization] = []
   @Published private(set) var apps: [FlyApp] = []
@@ -15,34 +12,21 @@ final class FlyStatusModel: ObservableObject {
   @Published private(set) var isRetainingSnapshot = false
 
   private let client: any FlyCLIClientProtocol
-  private let pollInterval: Duration
   private let now: @Sendable () -> Date
   private var refreshTask: Task<Void, Never>?
   private var refreshGeneration = 0
 
   init(
     client: any FlyCLIClientProtocol = FlyCLIClient(),
-    pollInterval: Duration = FlyStatusModel.refreshInterval,
     now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.client = client
-    self.pollInterval = pollInterval
     self.now = now
   }
 
   var showsHeaderProgress: Bool { isRefreshing }
   var machineCount: Int { apps.reduce(0) { $0 + $1.machines.count } }
   var hasRetainedData: Bool { !apps.isEmpty && isRetainingSnapshot }
-
-  func runAutoRefresh() async {
-    await refresh()
-    while !Task.isCancelled {
-      do { try await Task.sleep(for: pollInterval) }
-      catch { return }
-      guard !Task.isCancelled else { return }
-      await refresh()
-    }
-  }
 
   func refresh() async {
     if let refreshTask {

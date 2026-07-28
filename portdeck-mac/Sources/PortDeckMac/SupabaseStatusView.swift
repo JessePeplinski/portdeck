@@ -10,7 +10,7 @@ struct SupabaseStatusView: View {
   var body: some View {
     if model.projects.isEmpty && model.isRefreshing {
       loadingState
-    } else if model.projects.isEmpty {
+    } else if model.projects.isEmpty && model.connectionState != .connected {
       emptyOrSetupState
     } else {
       connectedContent
@@ -88,13 +88,13 @@ struct SupabaseStatusView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
         Spacer()
-        if let lastUpdated = model.lastSuccessfulRefreshAt {
-          SupabasePollingStatus(lastUpdated: lastUpdated, hasError: model.errorMessage != nil)
-        } else {
-          Text("Every \(SupabaseStatusModel.refreshIntervalSeconds)s")
-            .font(.caption)
-            .foregroundStyle(.tertiary)
-        }
+        RefreshStatusControl(
+          sourceName: "Supabase",
+          lastUpdated: model.lastSuccessfulRefreshAt,
+          isRefreshing: model.isRefreshing,
+          hasError: model.errorMessage != nil,
+          onRefresh: onRefresh
+        )
       }
       .padding(.horizontal, 2)
 
@@ -223,31 +223,6 @@ private struct SupabaseInlineWarning: View {
     }
     .padding(9)
     .background(.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
-  }
-}
-
-private struct SupabasePollingStatus: View {
-  let lastUpdated: Date
-  let hasError: Bool
-
-  var body: some View {
-    TimelineView(.periodic(from: .now, by: 1)) { context in
-      let age = max(0, Int(context.date.timeIntervalSince(lastUpdated)))
-      HStack(spacing: 4) {
-        Circle()
-          .fill(hasError ? Color.orange : Color.green)
-          .frame(width: 6, height: 6)
-        Text("Checked \(age)s ago")
-          .font(.caption)
-          .foregroundStyle(.tertiary)
-          .monospacedDigit()
-      }
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(
-        "Supabase projects refresh every \(SupabaseStatusModel.refreshIntervalSeconds) seconds. Last successful check \(age) seconds ago."
-      )
-      .help("Supabase projects refresh every \(SupabaseStatusModel.refreshIntervalSeconds) seconds while this tab is open.")
-    }
   }
 }
 

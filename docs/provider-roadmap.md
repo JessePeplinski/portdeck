@@ -25,7 +25,7 @@ Completed as an account-wide, read-only flyctl 0.4.71 adapter. It lists organiza
 
 ### 4. Render
 
-Show workspaces, services, datastores, and latest deployment state. Render's active-workspace model must not be mutated silently; polling must use an explicit workspace scope or fail clearly when the current CLI cannot provide one safely.
+Show workspaces, services, datastores, and latest deployment state. Render's active-workspace model must not be mutated silently; refreshes must use an explicit workspace scope or fail clearly when the current CLI cannot provide one safely.
 
 ### 5. Netlify
 
@@ -37,7 +37,7 @@ Match active local repositories with normalized GitLab remotes and show default-
 
 ### User-demand addition: Hostinger
 
-Completed as an account-wide, read-only Hostinger CLI 3.7 adapter. It paginates the accessible hosted-website list, renders enabled/disabled state without claiming uptime, blocks automatic OAuth browser flows during polling, strips inherited token and endpoint variables, and preserves last-good data across failures. It cannot deploy, change hosting configuration, read application data, manage domains/DNS/VPS/billing, or mutate Hostinger resources or authentication. This explicit user-demand slice does not reopen generic provider expansion beyond Render and GitLab CI.
+Completed as an account-wide, read-only Hostinger CLI 3.7 adapter. It paginates the accessible hosted-website list, renders enabled/disabled state without claiming uptime, blocks automatic OAuth browser flows during refreshes, strips inherited token and endpoint variables, and preserves last-good data across failures. It cannot deploy, change hosting configuration, read application data, manage domains/DNS/VPS/billing, or mutate Hostinger resources or authentication. This explicit user-demand slice does not reopen generic provider expansion beyond Render and GitLab CI.
 
 ## Shared provider contract
 
@@ -48,7 +48,7 @@ Every provider slice follows the existing PortDeck rules:
 - Pin PortDeck-owned runtimes exactly; never execute `latest` dynamically and never search monitored projects for an executable.
 - Keep credentials in the vendor CLI. Never log, render, persist, or copy credentials into PortDeck storage.
 - Decode only fields PortDeck renders and treat unknown future statuses defensively.
-- Poll only while the provider is selected and visible, cancel on hide/leave, allow manual refresh, and preserve the last successful snapshot during transient failures.
+- Refresh once when the provider view is selected or reopened, allow an immediate per-view manual refresh, and preserve the last successful snapshot during transient failures.
 - Keep provider models app-owned so tab reordering cannot discard state.
 - Never mutate provider resources, monitored repositories, dependencies, configuration, deployments, data, secrets, or authentication state.
 - Add focused runtime/client/model/configuration tests, run `git diff --check` and `npm run verify`, launch with `portdeck-mac/scripts/run-dev-app.sh`, and complete a real visual pass before shipping.

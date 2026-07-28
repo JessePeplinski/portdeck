@@ -3,9 +3,6 @@ import PortDeckCore
 
 @MainActor
 final class GitHubStatusModel: ObservableObject {
-  nonisolated static let refreshIntervalSeconds = 30
-  private static let refreshInterval = Duration.seconds(refreshIntervalSeconds)
-
   @Published private(set) var connectionState: GitHubConnectionState = .checking
   @Published private(set) var candidates: [GitHubRepositoryCandidate] = []
   @Published private(set) var repositories: [GitHubRepositoryStatus] = []
@@ -16,38 +13,20 @@ final class GitHubStatusModel: ObservableObject {
 
   private let client: any GitHubCLIClientProtocol
   private let resolver: any GitHubRepositoryCandidateResolving
-  private let pollInterval: Duration
   private let now: @Sendable () -> Date
   private var rateLimitMessage: String?
 
   init(
     client: any GitHubCLIClientProtocol = GitHubCLIClient(),
     resolver: any GitHubRepositoryCandidateResolving = GitHubRepositoryCandidateResolver(),
-    pollInterval: Duration = GitHubStatusModel.refreshInterval,
     now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.client = client
     self.resolver = resolver
-    self.pollInterval = pollInterval
     self.now = now
   }
 
   var showsHeaderProgress: Bool { isRefreshing }
-
-  func runAutoRefresh(status: PortdeckStatus?) async {
-    candidates = resolver.resolve(from: status)
-    await refreshCurrentCandidates(forceMetadata: false, recheckConnection: true)
-
-    while !Task.isCancelled {
-      do {
-        try await Task.sleep(for: pollInterval)
-      } catch {
-        return
-      }
-      guard !Task.isCancelled else { return }
-      await refreshCurrentCandidates(forceMetadata: false, recheckConnection: false)
-    }
-  }
 
   func updateCandidates(from status: PortdeckStatus?) async {
     let resolved = resolver.resolve(from: status)

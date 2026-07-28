@@ -93,26 +93,20 @@ import Testing
 }
 
 @MainActor
-@Test func flyModelRejectsOverlappingRefreshesAndPollsUntilCancelled() async throws {
+@Test func flyModelSharesOverlappingOneShotRefreshes() async throws {
   let client = FakeFlyClient(
-    results: Array(repeating: .success(FlySnapshotResult(organizations: [], apps: [])), count: 20),
+    results: [.success(FlySnapshotResult(organizations: [], apps: []))],
     delay: .milliseconds(20)
   )
-  let model = FlyStatusModel(client: client, pollInterval: .milliseconds(5))
+  let model = FlyStatusModel(client: client)
 
   async let first: Void = model.refresh()
   async let second: Void = model.refresh()
   _ = await (first, second)
   #expect(await client.callCount == 1)
 
-  let pollTask = Task { await model.runAutoRefresh() }
-  try await Task.sleep(for: .milliseconds(58))
-  pollTask.cancel()
-  _ = await pollTask.result
-  let countAfterCancel = await client.callCount
-  #expect(countAfterCancel >= 3)
   try await Task.sleep(for: .milliseconds(30))
-  #expect(await client.callCount == countAfterCancel)
+  #expect(await client.callCount == 1)
 }
 
 @MainActor

@@ -4,26 +4,14 @@ import Testing
 @testable import PortDeckMac
 
 @MainActor
-@Test func usesMinuteHostingerPollingAndCancelsWhenOwningTaskEnds() async {
-  #expect(HostingerStatusModel.refreshIntervalSeconds == 60)
-  let client = FakeHostingerClient(
-    responses: Array(repeating: .websites([sampleHostingerWebsite()]), count: 10)
-  )
-  let model = HostingerStatusModel(client: client, pollInterval: .milliseconds(10))
+@Test func hostingerRefreshIsOneShot() async {
+  let client = FakeHostingerClient(responses: [.websites([sampleHostingerWebsite()])])
+  let model = HostingerStatusModel(client: client)
 
-  let task = Task {
-    await model.runAutoRefresh()
-  }
-  for _ in 0..<100 where await client.callCount < 2 {
-    try? await Task.sleep(for: .milliseconds(2))
-  }
-  task.cancel()
-  await task.value
-  let countAfterCancellation = await client.callCount
+  await model.refresh()
   try? await Task.sleep(for: .milliseconds(25))
 
-  #expect(countAfterCancellation >= 2)
-  #expect(await client.callCount == countAfterCancellation)
+  #expect(await client.callCount == 1)
 }
 
 @MainActor

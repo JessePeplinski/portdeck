@@ -53,9 +53,9 @@ Decode only fields rendered by PortDeck:
 
 Ignore environment variables, forms, functions, DNS, build settings, repository configuration, plugins, collaborators, billing, logs, deploy messages, and unrelated deployment metadata. Public links must be HTTPS and must reject credentials, custom ports, localhost/private hosts, query strings, and fragments. Dashboard links must use canonical `app.netlify.com/sites/...` routes.
 
-## Polling, retention, and presentation
+## Refresh, retention, and presentation
 
-- Poll immediately and every 60 seconds only while Netlify is selected and visible.
+- Refresh once when Netlify is selected or reopened, with an immediate manual per-view refresh.
 - Keep one model-owned refresh task; reject automatic overlap, allow manual refresh, cancel on leave/hide, and terminate active child commands.
 - Limit all site-scoped requests to four concurrent commands.
 - Treat the site list as authoritative membership. Legitimate empty results replace old state.

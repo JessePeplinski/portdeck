@@ -5,14 +5,31 @@ import SwiftUI
 struct ConvexStatusView: View {
   @ObservedObject var model: ConvexStatusModel
   let searchText: String
+  let onRefresh: () -> Void
 
   var body: some View {
     if model.candidates.isEmpty {
-      emptyState(
-        systemImage: "cube",
-        title: "No linked Convex projects",
-        detail: "Start a local service from a package that declares Convex to see its production health here."
-      )
+      VStack(alignment: .leading, spacing: 10) {
+        HStack {
+          Label("Production health", systemImage: "waveform.path.ecg")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+          Spacer()
+          RefreshStatusControl(
+            sourceName: "Convex",
+            lastUpdated: model.lastUpdated,
+            isRefreshing: model.isRefreshing,
+            hasError: false,
+            onRefresh: onRefresh
+          )
+        }
+        .padding(.horizontal, 2)
+        emptyState(
+          systemImage: "cube",
+          title: "No linked Convex projects",
+          detail: "Start a local service from a package that declares Convex to see its production health here."
+        )
+      }
     } else if model.projects.isEmpty && model.isRefreshing {
       VStack(spacing: 8) {
         ProgressView()
@@ -33,7 +50,7 @@ struct ConvexStatusView: View {
         detail: "Install a supported Convex CLI. PortDeck reuses its local session and never installs or upgrades it automatically.",
         installCommand: ConvexRuntimeResolver.installCommand,
         documentationURL: ConvexRuntimeResolver.documentationURL,
-        onRefresh: { Task { await model.refresh() } }
+        onRefresh: onRefresh
       )
     } else if let project = model.projects.first,
       model.projects.allSatisfy({ $0.availability == project.availability }),
@@ -45,7 +62,7 @@ struct ConvexStatusView: View {
         detail: project.message ?? "PortDeck supports \(ConvexCLIClient.supportedVersionRange.displayName).",
         installCommand: ConvexRuntimeResolver.installCommand,
         documentationURL: ConvexRuntimeResolver.documentationURL,
-        onRefresh: { Task { await model.refresh() } }
+        onRefresh: onRefresh
       )
     } else {
       connectedContent
@@ -59,9 +76,13 @@ struct ConvexStatusView: View {
         .font(.caption)
         .foregroundStyle(.secondary)
       Spacer()
-      if let lastUpdated = model.lastUpdated {
-        ConvexLastCheckedStatus(lastUpdated: lastUpdated)
-      }
+      RefreshStatusControl(
+        sourceName: "Convex",
+        lastUpdated: model.lastUpdated,
+        isRefreshing: model.isRefreshing,
+        hasError: model.projects.contains { $0.availability == .unavailable },
+        onRefresh: onRefresh
+      )
     }
     .padding(.horizontal, 2)
 
@@ -101,30 +122,6 @@ struct ConvexStatusView: View {
     .padding(.vertical, 28)
     .padding(.horizontal, 20)
     .background(.quaternary.opacity(0.28), in: RoundedRectangle(cornerRadius: 9))
-  }
-}
-
-private struct ConvexLastCheckedStatus: View {
-  let lastUpdated: Date
-
-  var body: some View {
-    TimelineView(.periodic(from: .now, by: 1)) { context in
-      let age = convexPollingAgeSeconds(lastUpdated: lastUpdated, relativeTo: context.date)
-      HStack(spacing: 4) {
-        Circle()
-          .fill(.green)
-          .frame(width: 6, height: 6)
-        Text(convexLastCheckedLabel(ageSeconds: age))
-          .font(.caption)
-          .foregroundStyle(.tertiary)
-          .monospacedDigit()
-      }
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(
-        "Convex health checks every \(ConvexStatusModel.refreshIntervalSeconds) seconds. Last successful check \(age) seconds ago."
-      )
-      .help("Convex production health checks every \(ConvexStatusModel.refreshIntervalSeconds) seconds while this tab is open.")
-    }
   }
 }
 
@@ -248,12 +245,4 @@ private func relativeText(for date: Date) -> String {
   let formatter = RelativeDateTimeFormatter()
   formatter.unitsStyle = .abbreviated
   return formatter.localizedString(for: date, relativeTo: Date())
-}
-
-func convexPollingAgeSeconds(lastUpdated: Date, relativeTo now: Date) -> Int {
-  max(0, Int(now.timeIntervalSince(lastUpdated)))
-}
-
-func convexLastCheckedLabel(ageSeconds: Int) -> String {
-  "Checked \(max(0, ageSeconds))s ago"
 }

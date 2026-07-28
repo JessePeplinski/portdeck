@@ -3,9 +3,6 @@ import PortDeckCore
 
 @MainActor
 final class ConvexStatusModel: ObservableObject {
-  nonisolated static let refreshIntervalSeconds = 60
-  private static let refreshInterval = Duration.seconds(refreshIntervalSeconds)
-
   @Published private(set) var projects: [ConvexProjectStatus] = []
   @Published private(set) var candidates: [ConvexProjectCandidate] = []
   @Published private(set) var isRefreshing = false
@@ -32,20 +29,6 @@ final class ConvexStatusModel: ObservableObject {
 
   var needsAuthentication: Bool {
     projects.contains { $0.availability == .unauthenticated }
-  }
-
-  func runAutoRefresh(status: PortdeckStatus?) async {
-    candidates = resolver.resolve(from: status)
-    await refreshCurrentCandidates()
-
-    while !Task.isCancelled {
-      do {
-        try await Task.sleep(for: Self.refreshInterval)
-      } catch {
-        return
-      }
-      await refreshCurrentCandidates()
-    }
   }
 
   func updateCandidates(from status: PortdeckStatus?) async {

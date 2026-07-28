@@ -3,11 +3,6 @@ import PortDeckCore
 
 @MainActor
 final class VercelStatusModel: ObservableObject {
-  nonisolated static let deploymentRefreshIntervalSeconds = 2
-
-  private static let projectRefreshInterval = Duration.seconds(60)
-  private static let deploymentRefreshInterval = Duration.seconds(deploymentRefreshIntervalSeconds)
-
   @Published private(set) var connectionState: VercelConnectionState = .checking
   @Published private(set) var scope: VercelScope?
   @Published private(set) var projects: [VercelProjectStatus] = []
@@ -31,42 +26,6 @@ final class VercelStatusModel: ObservableObject {
 
   var showsHeaderProgress: Bool {
     isRefreshing || connectionState == .connecting
-  }
-
-  func runAutoRefresh() async {
-    await refresh()
-
-    await withTaskGroup(of: Void.self) { group in
-      group.addTask { [weak self] in
-        while !Task.isCancelled {
-          do {
-            try await Task.sleep(for: Self.projectRefreshInterval)
-          } catch {
-            return
-          }
-          guard let self, !Task.isCancelled else {
-            return
-          }
-          _ = await self.refreshProjectBaseline()
-        }
-      }
-
-      group.addTask { [weak self] in
-        while !Task.isCancelled {
-          do {
-            try await Task.sleep(for: Self.deploymentRefreshInterval)
-          } catch {
-            return
-          }
-          guard let self, !Task.isCancelled else {
-            return
-          }
-          await self.refreshDeploymentActivity()
-        }
-      }
-
-      await group.waitForAll()
-    }
   }
 
   func refresh() async {

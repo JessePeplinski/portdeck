@@ -40,10 +40,6 @@ final class ProviderConfigurationModel: ObservableObject {
     orderedProviders.filter { !hiddenProviders.contains($0) }
   }
 
-  var pollingProvider: PortdeckDashboardSource? {
-    isVisible(selectedProvider) ? selectedProvider : nil
-  }
-
   func isVisible(_ provider: PortdeckDashboardSource) -> Bool {
     orderedProviders.contains(provider) && !hiddenProviders.contains(provider)
   }
@@ -114,10 +110,6 @@ final class ProviderConfigurationModel: ObservableObject {
     orderedProviders = updatedProviders
     persist()
     return true
-  }
-
-  func shouldPoll(_ provider: PortdeckDashboardSource) -> Bool {
-    pollingProvider == provider
   }
 
   private func persist() {

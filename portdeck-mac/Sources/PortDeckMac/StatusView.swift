@@ -99,23 +99,23 @@ struct StatusView: View {
       if selectedSource == .local {
         await model.runAutoRefresh()
       } else if selectedSource == .vercel {
-        await vercelModel.runAutoRefresh()
+        await vercelModel.refresh()
       } else if selectedSource == .convex {
-        await convexModel.runAutoRefresh(status: model.status)
+        await convexModel.refresh(status: model.status)
       } else if selectedSource == .github {
-        await githubModel.runAutoRefresh(status: model.status)
+        await githubModel.refresh(status: model.status)
       } else if selectedSource == .supabase {
-        await supabaseModel.runAutoRefresh()
+        await supabaseModel.refresh()
       } else if selectedSource == .cloudflare {
-        await cloudflareModel.runAutoRefresh(status: model.status)
+        await cloudflareModel.refresh(status: model.status)
       } else if selectedSource == .railway {
-        await railwayModel.runAutoRefresh()
+        await railwayModel.refresh()
       } else if selectedSource == .fly {
-        await flyModel.runAutoRefresh()
+        await flyModel.refresh()
       } else if selectedSource == .netlify {
-        await netlifyModel.runAutoRefresh()
+        await netlifyModel.refresh()
       } else if selectedSource == .hostinger {
-        await hostingerModel.runAutoRefresh()
+        await hostingerModel.refresh()
       }
     }
     .onChange(of: model.status?.generatedAt) {
@@ -235,12 +235,20 @@ struct StatusView: View {
       if vercelModel.connectionState == .connected {
         searchField(placeholder: "Filter Vercel projects...", text: $vercelSearchText)
       }
-      VercelStatusView(model: vercelModel, searchText: vercelSearchText)
+      VercelStatusView(
+        model: vercelModel,
+        searchText: vercelSearchText,
+        onRefresh: refreshSelectedSource
+      )
     case .convex:
       if !convexModel.candidates.isEmpty {
         searchField(placeholder: "Filter Convex projects...", text: $convexSearchText)
       }
-      ConvexStatusView(model: convexModel, searchText: convexSearchText)
+      ConvexStatusView(
+        model: convexModel,
+        searchText: convexSearchText,
+        onRefresh: refreshSelectedSource
+      )
     case .github:
       if !githubModel.candidates.isEmpty {
         searchField(placeholder: "Filter GitHub Actions...", text: $githubSearchText)
@@ -248,7 +256,7 @@ struct StatusView: View {
       GitHubStatusView(
         model: githubModel,
         searchText: githubSearchText,
-        onRefresh: { Task { await githubModel.refresh(status: model.status) } }
+        onRefresh: refreshSelectedSource
       )
     case .supabase:
       if !supabaseModel.projects.isEmpty {
@@ -257,7 +265,7 @@ struct StatusView: View {
       SupabaseStatusView(
         model: supabaseModel,
         searchText: supabaseSearchText,
-        onRefresh: { Task { await supabaseModel.refresh() } }
+        onRefresh: refreshSelectedSource
       )
     case .cloudflare:
       if cloudflareModel.resourceCount > 0 {
@@ -266,7 +274,7 @@ struct StatusView: View {
       CloudflareStatusView(
         model: cloudflareModel,
         searchText: cloudflareSearchText,
-        onRefresh: { Task { await cloudflareModel.refresh(status: model.status) } }
+        onRefresh: refreshSelectedSource
       )
     case .railway:
       if !railwayModel.projects.isEmpty {
@@ -275,7 +283,7 @@ struct StatusView: View {
       RailwayStatusView(
         model: railwayModel,
         searchText: railwaySearchText,
-        onRefresh: { Task { await railwayModel.refresh() } }
+        onRefresh: refreshSelectedSource
       )
     case .fly:
       if !flyModel.apps.isEmpty {
@@ -284,7 +292,7 @@ struct StatusView: View {
       FlyStatusView(
         model: flyModel,
         searchText: flySearchText,
-        onRefresh: { Task { await flyModel.refresh() } }
+        onRefresh: refreshSelectedSource
       )
     case .netlify:
       if !netlifyModel.sites.isEmpty {
@@ -293,7 +301,7 @@ struct StatusView: View {
       NetlifyStatusView(
         model: netlifyModel,
         searchText: netlifySearchText,
-        onRefresh: { Task { await netlifyModel.refresh() } }
+        onRefresh: refreshSelectedSource
       )
     case .hostinger:
       if !hostingerModel.websites.isEmpty {
@@ -302,7 +310,7 @@ struct StatusView: View {
       HostingerStatusView(
         model: hostingerModel,
         searchText: hostingerSearchText,
-        onRefresh: { Task { await hostingerModel.refresh() } }
+        onRefresh: refreshSelectedSource
       )
     }
   }
@@ -319,7 +327,9 @@ struct StatusView: View {
         status: status,
         lastUpdated: model.lastUpdated,
         hasRefreshError: model.errorMessage != nil,
-        showLikelySystemListeners: model.showLikelySystemListeners
+        isRefreshing: model.isRefreshing,
+        showLikelySystemListeners: model.showLikelySystemListeners,
+        onRefresh: refreshSelectedSource
       )
 
       if let error = model.errorMessage, let lastUpdated = model.lastUpdated {
@@ -377,6 +387,11 @@ struct StatusView: View {
           .font(.callout)
           .foregroundStyle(.secondary)
           .textSelection(.enabled)
+        Button {
+          refreshSelectedSource()
+        } label: {
+          Label("Try again", systemImage: "arrow.clockwise")
+        }
       }
       .frame(maxWidth: .infinity, alignment: .topLeading)
       .padding(14)
@@ -395,14 +410,6 @@ struct StatusView: View {
   private var footer: some View {
     VStack(spacing: 8) {
       HStack(spacing: 8) {
-        Button {
-          refreshSelectedSource()
-        } label: {
-          Label("Refresh", systemImage: "arrow.clockwise")
-        }
-        .keyboardShortcut("r")
-        .disabled(!selectedSourceSupportsRefresh)
-
 #if !APP_STORE
         Button {
           openDonationPage()
@@ -676,10 +683,6 @@ struct StatusView: View {
     case .local:
       return model.showsHeaderProgress
     }
-  }
-
-  private var selectedSourceSupportsRefresh: Bool {
-    true
   }
 
   private var sourceTabs: some View {
@@ -1972,7 +1975,9 @@ private struct LocalOverview: View {
   let status: PortdeckStatus
   let lastUpdated: Date?
   let hasRefreshError: Bool
+  let isRefreshing: Bool
   let showLikelySystemListeners: Bool
+  let onRefresh: () -> Void
 
   var body: some View {
     let overview = LocalStatusPresentation.overview(
@@ -1995,9 +2000,6 @@ private struct LocalOverview: View {
       }
 
       HStack(spacing: 6) {
-        Circle()
-          .fill(hasRefreshError ? Color.orange : Color.green)
-          .frame(width: 6, height: 6)
         Text("Live every \(StatusModel.refreshIntervalSeconds)s")
           .font(.caption)
           .foregroundStyle(.secondary)
@@ -2009,15 +2011,13 @@ private struct LocalOverview: View {
             .foregroundStyle(.tertiary)
         }
         Spacer()
-        if let lastUpdated {
-          TimelineView(.periodic(from: .now, by: 1)) { context in
-            Text(localLastCheckedLabel(
-              ageSeconds: localPollingAgeSeconds(lastUpdated: lastUpdated, relativeTo: context.date)
-            ))
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.tertiary)
-          }
-        }
+        RefreshStatusControl(
+          sourceName: "Local",
+          lastUpdated: lastUpdated,
+          isRefreshing: isRefreshing,
+          hasError: hasRefreshError,
+          onRefresh: onRefresh
+        )
       }
     }
     .padding(.horizontal, 10)
@@ -2027,7 +2027,6 @@ private struct LocalOverview: View {
       RoundedRectangle(cornerRadius: 8)
         .stroke(.quaternary.opacity(0.85))
     )
-    .accessibilityElement(children: .combine)
   }
 }
 

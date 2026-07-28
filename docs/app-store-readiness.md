@@ -35,7 +35,7 @@ The future provider implementations must preserve:
 
 - no token copying, logging, or PortDeck-owned provider credential storage;
 - no project manifest, lockfile, CLI context, or monitored repository mutation;
-- the current read-only resource scopes and bounded polling;
+- the current read-only resource scopes and bounded refreshes;
 - last-good snapshot behavior across authentication, rate-limit, malformed-output, and transient failures;
 - no deployment, restart, configuration, log, secret, shell, or resource-mutation controls.
 

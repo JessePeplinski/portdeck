@@ -35,7 +35,7 @@ Map only `SUCCESS`, `FAILED`, `CRASHED`, `BUILDING`, `DEPLOYING`, `INITIALIZING`
 
 - Run one runtime/auth/project baseline, then explicitly scoped production requests with no more than four scoped commands concurrently.
 - Preserve projects without production, legitimate empty service lists, unaffected partial successes, and last-good project/service metadata during failures.
-- Poll immediately and every 60 seconds only while Railway is selected and visible; cancel on hide/leave and reject automatic overlap.
+- Refresh once when Railway is selected or reopened, expose a manual per-view refresh, and reject overlapping refreshes.
 - Keep the model app-owned so provider reordering cannot discard snapshots.
 - Show setup, auth, empty, partial, rate-limit, incompatible-runtime, and retained-data states. Authentication UI may copy `railway login` but never run it.
 - Validate production links as HTTPS and dashboard links as Railway project URLs.
