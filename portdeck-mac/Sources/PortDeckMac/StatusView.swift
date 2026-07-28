@@ -324,11 +324,9 @@ struct StatusView: View {
       )
 
       LocalOverview(
-        status: status,
         lastUpdated: model.lastUpdated,
         hasRefreshError: model.errorMessage != nil,
         isRefreshing: model.isRefreshing,
-        showLikelySystemListeners: model.showLikelySystemListeners,
         onRefresh: refreshSelectedSource
       )
 
@@ -1972,78 +1970,26 @@ private struct ActivityMetricText: View {
 }
 
 private struct LocalOverview: View {
-  let status: PortdeckStatus
   let lastUpdated: Date?
   let hasRefreshError: Bool
   let isRefreshing: Bool
-  let showLikelySystemListeners: Bool
   let onRefresh: () -> Void
 
   var body: some View {
-    let overview = LocalStatusPresentation.overview(
-      for: status,
-      showLikelySystemListeners: showLikelySystemListeners
-    )
-
-    VStack(spacing: 8) {
-      HStack(spacing: 8) {
-        Label("This Mac", systemImage: "laptopcomputer")
-          .font(.callout.weight(.semibold))
-        Spacer(minLength: 4)
-        LocalOverviewMetric(value: overview.projectCount, label: "projects")
-        LocalOverviewMetric(value: overview.serviceCount, label: "services")
-        LocalOverviewMetric(
-          value: overview.problemCount,
-          label: "problems",
-          tint: overview.problemCount > 0 ? .orange : .secondary
-        )
-      }
-
-      HStack(spacing: 6) {
-        Text("Live every \(StatusModel.refreshIntervalSeconds)s")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        if overview.hiddenSystemServiceCount > 0 {
-          Text("·")
-            .foregroundStyle(.tertiary)
-          Text("\(overview.hiddenSystemServiceCount) system hidden")
-            .font(.caption)
-            .foregroundStyle(.tertiary)
-        }
-        Spacer()
-        RefreshStatusControl(
-          sourceName: "Local",
-          lastUpdated: lastUpdated,
-          isRefreshing: isRefreshing,
-          hasError: hasRefreshError,
-          onRefresh: onRefresh
-        )
-      }
-    }
-    .padding(.horizontal, 10)
-    .padding(.vertical, 9)
-    .background(.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8))
-    .overlay(
-      RoundedRectangle(cornerRadius: 8)
-        .stroke(.quaternary.opacity(0.85))
-    )
-  }
-}
-
-private struct LocalOverviewMetric: View {
-  let value: Int
-  let label: String
-  var tint: Color = .secondary
-
-  var body: some View {
-    HStack(spacing: 3) {
-      Text("\(value)")
-        .font(.caption.monospacedDigit().weight(.semibold))
-        .foregroundStyle(tint)
-      Text(label)
+    HStack {
+      Label("This Mac", systemImage: "laptopcomputer")
         .font(.caption)
         .foregroundStyle(.secondary)
+      Spacer()
+      RefreshStatusControl(
+        sourceName: "Local",
+        lastUpdated: lastUpdated,
+        isRefreshing: isRefreshing,
+        hasError: hasRefreshError,
+        onRefresh: onRefresh
+      )
     }
+    .padding(.horizontal, 2)
   }
 }
 
