@@ -31,7 +31,7 @@ struct RefreshStatusControl: View {
               .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 5))
           }
           .buttonStyle(.plain)
-          .keyboardShortcut("r", modifiers: [])
+          .keyboardShortcut("r", modifiers: .command)
           .disabled(isRefreshing)
           .accessibilityLabel("Refresh \(sourceName)")
           .help("Refresh \(sourceName)")
