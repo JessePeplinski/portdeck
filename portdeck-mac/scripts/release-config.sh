@@ -21,6 +21,7 @@ sparkle_version="2.9.4"
 sparkle_feed_url="https://portdeck.vercel.app/appcast-beta.xml"
 sparkle_keychain_account="app.portdeck.dev"
 sparkle_public_ed_key="${PORTDECK_SPARKLE_PUBLIC_ED_KEY:-}"
+sparkle_signed_feed_failure_expiration_interval="1728000"
 
 node_version="24.18.0"
 node_archive="node-v${node_version}-darwin-arm64.tar.gz"

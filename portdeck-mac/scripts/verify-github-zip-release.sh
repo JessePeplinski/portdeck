@@ -175,6 +175,8 @@ fi
   || fail "SUVerifyUpdateBeforeExtraction is not enabled"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :SURequireSignedFeed' "$info_plist")" == "true" ]] \
   || fail "SURequireSignedFeed is not enabled"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUSignedFeedFailureExpirationInterval' "$info_plist")" == "$sparkle_signed_feed_failure_expiration_interval" ]] \
+  || fail "SUSignedFeedFailureExpirationInterval is not the approved recovery window"
 
 approved_icon_sha256="$(/usr/libexec/PlistBuddy -c 'Print :PortDeckApprovedIconSHA256' "$info_plist")"
 [[ "$approved_icon_sha256" =~ ^[0-9a-f]{64}$ ]] || fail "approved icon checksum metadata is invalid"

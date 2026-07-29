@@ -10,7 +10,7 @@ source "$script_root/release-config.sh"
 
 release_notes="${1:-}"
 existing_appcast="${2:-}"
-release_zip="$artifact_root/$release_asset"
+release_update="$artifact_root/$release_dmg"
 staging_root="$package_root/.build/sparkle-appcast-staging"
 output_appcast="$artifact_root/appcast-beta.xml"
 sparkle_tools_root="$swift_scratch/artifacts/sparkle/Sparkle/bin"
@@ -23,7 +23,7 @@ fail() {
   exit 1
 }
 
-[[ -f "$release_zip" ]] || fail "missing verified release ZIP: $release_zip"
+[[ -f "$release_update" ]] || fail "missing verified release DMG: $release_update"
 [[ -f "$release_notes" ]] || fail "usage: generate-sparkle-appcast.sh <release-notes.md> [existing-appcast.xml]"
 [[ "$sparkle_public_ed_key" =~ ^[A-Za-z0-9+/]{43}=$ ]] \
   || fail "PORTDECK_SPARKLE_PUBLIC_ED_KEY is missing or invalid"
@@ -37,8 +37,8 @@ keychain_public_key="$("$generate_keys" --account "$sparkle_keychain_account" -p
 
 /bin/rm -rf "$staging_root"
 /bin/mkdir -p "$staging_root"
-/usr/bin/ditto "$release_zip" "$staging_root/$release_asset"
-/bin/cp "$release_notes" "$staging_root/${release_asset%.zip}.md"
+/usr/bin/ditto "$release_update" "$staging_root/$release_dmg"
+/bin/cp "$release_notes" "$staging_root/${release_dmg%.dmg}.md"
 if [[ -n "$existing_appcast" ]]; then
   [[ -f "$existing_appcast" ]] || fail "existing appcast does not exist: $existing_appcast"
   /bin/cp "$existing_appcast" "$staging_root/appcast-beta.xml"
@@ -68,4 +68,4 @@ fi
 
 /bin/cp "$staging_root/appcast-beta.xml" "$output_appcast"
 echo "Generated signed PortDeck beta appcast: $output_appcast"
-echo "Enclosure: https://github.com/JessePeplinski/portdeck/releases/download/${release_tag}/${release_asset}"
+echo "Enclosure: https://github.com/JessePeplinski/portdeck/releases/download/${release_tag}/${release_dmg}"

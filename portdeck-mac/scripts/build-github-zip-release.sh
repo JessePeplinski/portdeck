@@ -83,6 +83,9 @@ set_plist_bool SUAutomaticallyUpdate false
 set_plist_bool SUEnableSystemProfiling false
 set_plist_bool SUVerifyUpdateBeforeExtraction true
 set_plist_bool SURequireSignedFeed true
+set_plist_integer \
+  SUSignedFeedFailureExpirationInterval \
+  "$sparkle_signed_feed_failure_expiration_interval"
 
 main_executable="$staging_app/Contents/MacOS/PortDeckMac"
 bundled_node="$staging_app/Contents/Resources/PortDeckRuntime/bin/node"

@@ -74,7 +74,7 @@ The Node runtime is exactly 24.18.0 from the pinned official arm64 archive and S
 
 Apple bundle versions remain numeric. The prerelease identity is stored separately in `PortDeckReleaseVersion` and `PortDeckReleaseTag`; the verifier ties those values to the expected asset name and checksum.
 
-Production `Info.plist` embeds `https://portdeck.vercel.app/appcast-beta.xml`, the approved EdDSA public key, a 24-hour automatic-check interval, signed-feed and pre-extraction verification requirements, and disables both automatic installation and system profiling. Development builds omit this release configuration and never start the production updater.
+Production `Info.plist` embeds `https://portdeck.vercel.app/appcast-beta.xml`, the approved EdDSA public key, a 24-hour automatic-check interval, signed-feed and pre-extraction verification requirements, and Sparkle's explicit 20-day signed-feed recovery window. It disables both automatic installation and system profiling. Development builds omit this release configuration and never start the production updater.
 
 After the final ZIP passes production verification, generate the signed feed item:
 
@@ -82,7 +82,7 @@ After the final ZIP passes production verification, generate the signed feed ite
 npm run generate:mac:sparkle-appcast -- docs/release-notes/v0.1.0-beta.13.md
 ```
 
-The generator uses Sparkle's pinned tools, validates the signing key against the release public key, embeds the release notes, keeps full ZIP updates only, and verifies the signed output. Publish the GitHub Release assets first, then copy the generated `appcast-beta.xml` into the site and deploy them as one approved release operation.
+The generator uses Sparkle's pinned tools, validates the signing key against the release public key, embeds the release notes, uses the Developer ID-signed and notarized DMG as the full update enclosure, and verifies the signed output. The ZIP remains the Homebrew artifact. Publish the GitHub Release assets first, then copy the generated `appcast-beta.xml` into the site and deploy them as one approved release operation.
 
 Do not run the guarded signing/notarization workflow, create a tag, publish a GitHub Release, update Homebrew, or deploy the site without explicit release approval.
 
