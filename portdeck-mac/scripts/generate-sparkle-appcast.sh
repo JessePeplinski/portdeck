@@ -63,7 +63,10 @@ fi
   --account "$sparkle_keychain_account" \
   --disable-signing-warning \
   "$staging_root/appcast-beta.xml"
-"$sign_update" --verify "$staging_root/appcast-beta.xml"
+"$sign_update" \
+  --account "$sparkle_keychain_account" \
+  --verify \
+  "$staging_root/appcast-beta.xml"
 /usr/bin/xmllint --noout "$staging_root/appcast-beta.xml"
 
 /bin/cp "$staging_root/appcast-beta.xml" "$output_appcast"

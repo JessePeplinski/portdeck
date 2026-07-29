@@ -96,6 +96,15 @@ test("uses the signed DMG as the Sparkle update enclosure", async () => {
   assert.doesNotMatch(generator, /release_zip/);
 });
 
+test("verifies the signed feed with the PortDeck Keychain account", async () => {
+  const generator = await readFile(appcastGenerator, "utf8");
+
+  assert.match(
+    generator,
+    /"\$sign_update"\s+\\\n\s+--account "\$sparkle_keychain_account"\s+\\\n\s+--verify\s+\\/
+  );
+});
+
 test("pins and verifies the signed-feed recovery window", async () => {
   const configResult = spawnSync(
     "/bin/bash",
