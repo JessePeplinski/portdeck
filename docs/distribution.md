@@ -4,14 +4,14 @@ PortDeck's public beta is a Developer ID-signed and notarized arm64 app distribu
 
 ## Current release and next target
 
-The current public beta is `v0.1.0-beta.13` for Apple Silicon Macs running macOS 14 or newer:
+The current public beta is `v0.1.0-beta.14` for Apple Silicon Macs running macOS 14 or newer:
 
-- [`PortDeck-0.1.0-beta.13-macos-arm64.dmg`](../../../releases/download/v0.1.0-beta.13/PortDeck-0.1.0-beta.13-macos-arm64.dmg)
-- [`PortDeck-0.1.0-beta.13-macos-arm64.dmg.sha256`](../../../releases/download/v0.1.0-beta.13/PortDeck-0.1.0-beta.13-macos-arm64.dmg.sha256)
-- [`PortDeck-0.1.0-beta.13-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.13/PortDeck-0.1.0-beta.13-macos-arm64.zip)
-- [`PortDeck-0.1.0-beta.13-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.13/PortDeck-0.1.0-beta.13-macos-arm64.zip.sha256)
+- [`PortDeck-0.1.0-beta.14-macos-arm64.dmg`](../../../releases/download/v0.1.0-beta.14/PortDeck-0.1.0-beta.14-macos-arm64.dmg)
+- [`PortDeck-0.1.0-beta.14-macos-arm64.dmg.sha256`](../../../releases/download/v0.1.0-beta.14/PortDeck-0.1.0-beta.14-macos-arm64.dmg.sha256)
+- [`PortDeck-0.1.0-beta.14-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.14/PortDeck-0.1.0-beta.14-macos-arm64.zip)
+- [`PortDeck-0.1.0-beta.14-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.14/PortDeck-0.1.0-beta.14-macos-arm64.zip.sha256)
 
-The next release target is `v0.1.0-beta.14`.
+The next release target is `v0.1.0-beta.15`.
 
 A universal/x86_64 build, delta updates, and App Store package are outside the current beta contract.
 
@@ -81,7 +81,7 @@ Production `Info.plist` embeds `https://portdeck.vercel.app/appcast-beta.xml`, t
 After the final ZIP passes production verification, generate the signed feed item:
 
 ```bash
-npm run generate:mac:sparkle-appcast -- docs/release-notes/v0.1.0-beta.14.md
+npm run generate:mac:sparkle-appcast -- docs/release-notes/v0.1.0-beta.15.md
 ```
 
 The generator uses Sparkle's pinned tools, validates the signing key against the release public key, embeds the release notes, uses the Developer ID-signed and notarized DMG as the full update enclosure, and verifies the signed output. The ZIP remains the Homebrew artifact. Publish the GitHub Release assets first, then copy the generated `appcast-beta.xml` into the site and deploy them as one approved release operation.

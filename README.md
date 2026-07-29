@@ -3,7 +3,7 @@
 PortDeck is a native macOS menu-bar command center for local development services and read-only deployment-provider health.
 
 > [!IMPORTANT]
-> PortDeck is in pre-release development. `v0.1.0-beta.14` is the next signed and notarized GitHub prerelease target. Beta.13 introduced signed Sparkle updates. Source-development, sandbox-probe, local release-candidate, and production direct-download artifacts remain separate workflows.
+> PortDeck is in pre-release development. `v0.1.0-beta.15` is the next signed and notarized GitHub prerelease target. Beta.13 introduced signed Sparkle updates. Source-development, sandbox-probe, local release-candidate, and production direct-download artifacts remain separate workflows.
 
 ## What PortDeck does
 
@@ -25,14 +25,14 @@ open -a PortDeck
 
 Homebrew installs the same signed and notarized app published on GitHub. For a manual installation, download the DMG, open it, and drag PortDeck into Applications:
 
-- [`PortDeck-0.1.0-beta.13-macos-arm64.dmg`](../../releases/download/v0.1.0-beta.13/PortDeck-0.1.0-beta.13-macos-arm64.dmg)
-- [`PortDeck-0.1.0-beta.13-macos-arm64.dmg.sha256`](../../releases/download/v0.1.0-beta.13/PortDeck-0.1.0-beta.13-macos-arm64.dmg.sha256)
+- [`PortDeck-0.1.0-beta.14-macos-arm64.dmg`](../../releases/download/v0.1.0-beta.14/PortDeck-0.1.0-beta.14-macos-arm64.dmg)
+- [`PortDeck-0.1.0-beta.14-macos-arm64.dmg.sha256`](../../releases/download/v0.1.0-beta.14/PortDeck-0.1.0-beta.14-macos-arm64.dmg.sha256)
 
 Download both files into the same directory, verify the disk image, then open it:
 
 ```bash
-shasum -a 256 -c PortDeck-0.1.0-beta.13-macos-arm64.dmg.sha256
-open PortDeck-0.1.0-beta.13-macos-arm64.dmg
+shasum -a 256 -c PortDeck-0.1.0-beta.14-macos-arm64.dmg.sha256
+open PortDeck-0.1.0-beta.14-macos-arm64.dmg
 ```
 
 The versioned ZIP and checksum remain on the GitHub Release for Homebrew and fallback installs. Both containers hold the same Developer ID-signed, Apple-notarized app. PortDeck does not use App Sandbox in the direct-download build because local process, port, Git, Docker, stop controls, and external provider CLI access require the separately verified direct-download boundary.
