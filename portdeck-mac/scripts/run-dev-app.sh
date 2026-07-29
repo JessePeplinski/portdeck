@@ -17,6 +17,7 @@ rm -rf "$app_bundle"
 mkdir -p "$app_bundle/Contents/MacOS" "$app_bundle/Contents/Resources" "$app_bundle/Contents/Frameworks"
 cp "$executable" "$app_bundle/Contents/MacOS/PortDeckMac"
 cp "$info_plist" "$app_bundle/Contents/Info.plist"
+"scripts/apply-version-metadata.sh" "$app_bundle/Contents/Info.plist"
 /usr/libexec/PlistBuddy \
   -c "Set :CFBundleIdentifier app.portdeck.dev.development" \
   "$app_bundle/Contents/Info.plist"

@@ -18,6 +18,7 @@ rm -rf "$app_bundle"
 mkdir -p "$app_bundle/Contents/MacOS" "$app_bundle/Contents/Resources" "$app_bundle/Contents/Frameworks"
 cp "$executable" "$app_bundle/Contents/MacOS/PortDeckMac"
 cp "$info_plist" "$app_bundle/Contents/Info.plist"
+"$package_root/scripts/apply-version-metadata.sh" "$app_bundle/Contents/Info.plist"
 touch "$app_bundle/Contents/Resources/.portdeck-source-development"
 "$package_root/scripts/stage-sparkle-framework.sh" "$sparkle_source" "$sparkle_framework" arm64
 
