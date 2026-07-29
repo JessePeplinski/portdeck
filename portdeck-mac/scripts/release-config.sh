@@ -20,7 +20,7 @@ create_dmg_version="1.3.0"
 sparkle_version="2.9.4"
 sparkle_feed_url="https://portdeck.vercel.app/appcast-beta.xml"
 sparkle_keychain_account="app.portdeck.dev"
-sparkle_public_ed_key="${PORTDECK_SPARKLE_PUBLIC_ED_KEY:-}"
+sparkle_public_ed_key="ItVdh8w/+EkY1dkgwY0/6NJeK3QKlXzhrrSk/JeMgRw="
 sparkle_signed_feed_failure_expiration_interval="1728000"
 
 node_version="24.18.0"

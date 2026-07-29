@@ -86,7 +86,7 @@ if [[ "$release_tag" != "v${release_version}" ]]; then
   block "release tag ${release_tag} does not match release version ${release_version}"
 fi
 if [[ ! "$sparkle_public_ed_key" =~ ^[A-Za-z0-9+/]{43}=$ ]]; then
-  block "set PORTDECK_SPARKLE_PUBLIC_ED_KEY to PortDeck's 44-character Sparkle Ed25519 public key"
+  block "the pinned Sparkle Ed25519 public key is invalid"
 fi
 
 if [[ "$blockers" -ne 0 ]]; then

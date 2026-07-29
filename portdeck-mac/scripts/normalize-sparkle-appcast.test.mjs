@@ -115,3 +115,22 @@ test("pins and verifies the signed-feed recovery window", async () => {
   assert.match(builder, /SUSignedFeedFailureExpirationInterval/);
   assert.match(verifier, /SUSignedFeedFailureExpirationInterval/);
 });
+
+test("pins the PortDeck Sparkle public key in release configuration", () => {
+  const configResult = spawnSync(
+    "/bin/bash",
+    [
+      "-c",
+      'source "$1"; printf "%s" "$sparkle_public_ed_key"',
+      "_",
+      releaseConfig
+    ],
+    { encoding: "utf8" }
+  );
+
+  assert.equal(configResult.status, 0, configResult.stderr);
+  assert.equal(
+    configResult.stdout,
+    "ItVdh8w/+EkY1dkgwY0/6NJeK3QKlXzhrrSk/JeMgRw="
+  );
+});

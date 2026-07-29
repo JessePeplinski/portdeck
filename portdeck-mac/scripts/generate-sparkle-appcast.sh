@@ -26,14 +26,14 @@ fail() {
 [[ -f "$release_update" ]] || fail "missing verified release DMG: $release_update"
 [[ -f "$release_notes" ]] || fail "usage: generate-sparkle-appcast.sh <release-notes.md> [existing-appcast.xml]"
 [[ "$sparkle_public_ed_key" =~ ^[A-Za-z0-9+/]{43}=$ ]] \
-  || fail "PORTDECK_SPARKLE_PUBLIC_ED_KEY is missing or invalid"
+  || fail "pinned Sparkle public key is invalid"
 for tool in "$generate_appcast" "$generate_keys" "$sign_update"; do
   [[ -x "$tool" ]] || fail "missing Sparkle ${sparkle_version} tool: $tool"
 done
 
 keychain_public_key="$("$generate_keys" --account "$sparkle_keychain_account" -p)"
 [[ "$keychain_public_key" == "$sparkle_public_ed_key" ]] \
-  || fail "Keychain Sparkle key does not match PORTDECK_SPARKLE_PUBLIC_ED_KEY"
+  || fail "Keychain Sparkle key does not match the pinned public key"
 
 /bin/rm -rf "$staging_root"
 /bin/mkdir -p "$staging_root"
