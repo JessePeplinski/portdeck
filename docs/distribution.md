@@ -4,14 +4,14 @@ PortDeck's public beta is a Developer ID-signed and notarized arm64 app distribu
 
 ## Current target
 
-The next public beta target is `v0.1.0-beta.12` for Apple Silicon Macs running macOS 14 or newer:
+The next public beta target is `v0.1.0-beta.13` for Apple Silicon Macs running macOS 14 or newer:
 
-- [`PortDeck-0.1.0-beta.12-macos-arm64.dmg`](../../../releases/download/v0.1.0-beta.12/PortDeck-0.1.0-beta.12-macos-arm64.dmg)
-- [`PortDeck-0.1.0-beta.12-macos-arm64.dmg.sha256`](../../../releases/download/v0.1.0-beta.12/PortDeck-0.1.0-beta.12-macos-arm64.dmg.sha256)
-- [`PortDeck-0.1.0-beta.12-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.12/PortDeck-0.1.0-beta.12-macos-arm64.zip)
-- [`PortDeck-0.1.0-beta.12-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.12/PortDeck-0.1.0-beta.12-macos-arm64.zip.sha256)
+- [`PortDeck-0.1.0-beta.13-macos-arm64.dmg`](../../../releases/download/v0.1.0-beta.13/PortDeck-0.1.0-beta.13-macos-arm64.dmg)
+- [`PortDeck-0.1.0-beta.13-macos-arm64.dmg.sha256`](../../../releases/download/v0.1.0-beta.13/PortDeck-0.1.0-beta.13-macos-arm64.dmg.sha256)
+- [`PortDeck-0.1.0-beta.13-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.13/PortDeck-0.1.0-beta.13-macos-arm64.zip)
+- [`PortDeck-0.1.0-beta.13-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.13/PortDeck-0.1.0-beta.13-macos-arm64.zip.sha256)
 
-A universal/x86_64 build, in-app updater, and App Store package are outside the current beta contract.
+A universal/x86_64 build, delta updates, and App Store package are outside the current beta contract.
 
 ## Bundle boundary
 
@@ -20,6 +20,7 @@ The direct-download app contains only:
 - the native `PortDeckMac` executable;
 - the esbuild-produced local-discovery helper;
 - Node.js 24.18.0 arm64 for that helper;
+- Sparkle 2.9.4 arm64 and its required helper apps;
 - the approved icon, `Info.plist`, code-signing resources, and required licenses/notices.
 
 Provider CLIs are external dependencies. The app, ZIP, and DMG must not contain `ProviderRuntimes`, a provider `node_modules` tree, provider wrappers, provider credentials, or provider authentication state. This removes the largest part of the previous bundle while preserving self-contained local discovery.
@@ -29,8 +30,8 @@ The release limits are hard gates:
 - installed `PortDeck.app`: at most 110 MiB (`112640` KiB);
 - production ZIP: at most `45,000,000` bytes;
 - production DMG: at most `55,000,000` bytes;
-- local candidate: at most nine regular files;
-- production app: exactly the ten expected regular files, including Apple's stapled notarization ticket.
+- local candidate: at most 72 regular files;
+- production app: at most 75 regular files, including Apple's stapled notarization ticket.
 
 `scripts/build-release-app.sh` strips the Swift app executable and bundled Node executable before signing. It emits matching `PortDeckMac.dSYM` debug symbols beside the local candidate, outside `PortDeck.app`, and rejects a UUID mismatch.
 
@@ -62,8 +63,8 @@ PORTDECK_APPROVE_SIGNING_AND_NOTARIZATION=YES npm run build:mac:github-release
 The guarded workflow:
 
 1. Builds and verifies the local arm64 candidate.
-2. Adds the approved icon and release metadata.
-3. Signs each nested Mach-O before signing the outer app; it never uses `codesign --deep` for signing.
+2. Adds the approved icon, release metadata, signed Sparkle feed configuration, and Sparkle license.
+3. Signs each nested Mach-O and Sparkle helper app inside-out before signing the framework and outer app; it never uses `codesign --deep` for signing.
 4. Submits a temporary ZIP to Apple, requires an accepted zero-issue notarization log, and staples the app ticket.
 5. Creates the final ZIP and SHA-256 sidecar under the ignored `portdeck-mac/.build/github-release-artifacts` directory.
 6. Creates the DMG with `PortDeck.app` and an `/Applications` drop link, signs the disk image, submits the DMG separately to Apple, requires an accepted zero-issue log, and staples the DMG ticket.
@@ -72,6 +73,16 @@ The guarded workflow:
 The Node runtime is exactly 24.18.0 from the pinned official arm64 archive and SHA-256 in `release-config.sh`. No provider downloads occur during build or application runtime.
 
 Apple bundle versions remain numeric. The prerelease identity is stored separately in `PortDeckReleaseVersion` and `PortDeckReleaseTag`; the verifier ties those values to the expected asset name and checksum.
+
+Production `Info.plist` embeds `https://portdeck.vercel.app/appcast-beta.xml`, the approved EdDSA public key, a 24-hour automatic-check interval, signed-feed and pre-extraction verification requirements, and disables both automatic installation and system profiling. Development builds omit this release configuration and never start the production updater.
+
+After the final ZIP passes production verification, generate the signed feed item:
+
+```bash
+npm run generate:mac:sparkle-appcast -- docs/release-notes/v0.1.0-beta.13.md
+```
+
+The generator uses Sparkle's pinned tools, validates the signing key against the release public key, embeds the release notes, keeps full ZIP updates only, and verifies the signed output. Publish the GitHub Release assets first, then copy the generated `appcast-beta.xml` into the site and deploy them as one approved release operation.
 
 Do not run the guarded signing/notarization workflow, create a tag, publish a GitHub Release, update Homebrew, or deploy the site without explicit release approval.
 
@@ -82,12 +93,12 @@ Do not run the guarded signing/notarization workflow, create a tag, publish a Gi
 - the expected ZIP/checksum names and digest;
 - a ZIP at or below `45,000,000` bytes;
 - only `PortDeck.app` at the archive root;
-- the exact ten-file app contents, including Apple's stapled notarization ticket, and no `ProviderRuntimes`;
+- strict core app contents plus only the expected Sparkle framework subtree, including Apple's stapled notarization ticket, and no `ProviderRuntimes`;
 - an installed app at or below 110 MiB;
 - matching release metadata and approved icon checksum;
 - arm64-only Mach-O code;
-- Developer ID signatures, hardened runtime, secure timestamps, and Node's narrow JIT entitlement;
-- no App Sandbox or `get-task-allow`;
+- Developer ID signatures for the app, Sparkle framework, helper apps, and Mach-O code; hardened runtime; secure timestamps; and Node's narrow JIT entitlement;
+- no App Sandbox, `get-task-allow`, or local-only library-validation exception;
 - a valid stapled ticket and Gatekeeper acceptance under quarantine;
 - no builder paths, credentials, auth stores, `.env` files, or escaping symlinks;
 - self-contained local discovery with no system Node dependency;
@@ -140,7 +151,7 @@ Users install the public beta with:
 brew install --cask JessePeplinski/tap/portdeck@beta
 ```
 
-The cask in [`JessePeplinski/homebrew-tap`](https://github.com/JessePeplinski/homebrew-tap) installs the exact signed and notarized GitHub ZIP; it is not a separate build. Manual installation uses the DMG and its drag-to-Applications layout. After an approved GitHub Release passes downloaded-artifact verification, the tap workflow may be dispatched for that exact version. Never point the cask at an unpublished asset or use `sha256 :no_check`.
+The cask in [`JessePeplinski/homebrew-tap`](https://github.com/JessePeplinski/homebrew-tap) installs the exact signed and notarized GitHub ZIP; it is not a separate build. Beginning with beta.13 the cask must declare `auto_updates true`, because the signed Sparkle feed is the authoritative in-app update path. Manual installation uses the DMG and its drag-to-Applications layout. After an approved GitHub Release passes downloaded-artifact verification, the tap workflow may be dispatched for that exact version. Never point the cask at an unpublished asset or use `sha256 :no_check`.
 
 ## App Store boundary
 

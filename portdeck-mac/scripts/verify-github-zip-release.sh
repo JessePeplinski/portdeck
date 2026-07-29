@@ -103,6 +103,11 @@ bundled_node="$runtime_root/bin/node"
 bundled_cli="$runtime_root/portdeck-cli.js"
 licenses_root="$app_bundle/Contents/Resources/Licenses"
 approved_icon="$app_bundle/Contents/Resources/PortDeck.icns"
+sparkle_framework="$app_bundle/Contents/Frameworks/Sparkle.framework"
+sparkle_binary="$sparkle_framework/Versions/B/Sparkle"
+sparkle_autoupdate="$sparkle_framework/Versions/B/Autoupdate"
+sparkle_updater_app="$sparkle_framework/Versions/B/Updater.app"
+sparkle_updater="$sparkle_updater_app/Contents/MacOS/Updater"
 
 require_file "$info_plist"
 require_executable "$main_executable"
@@ -112,10 +117,24 @@ require_file "$approved_icon"
 require_file "$licenses_root/PortDeck-LICENSE.txt"
 require_file "$licenses_root/Node.js-LICENSE.txt"
 require_file "$licenses_root/PortDeck-Helper-THIRD-PARTY-NOTICES.txt"
+require_file "$licenses_root/Sparkle-LICENSE.txt"
+require_executable "$sparkle_binary"
+require_executable "$sparkle_autoupdate"
+require_executable "$sparkle_updater"
 [[ ! -e "$app_bundle/Contents/Resources/.portdeck-source-development" ]] \
   || fail "production app enables source-development runtime fallback"
 [[ ! -e "$app_bundle/Contents/Resources/ProviderRuntimes" ]] \
   || fail "production app bundles provider CLIs"
+[[ ! -e "$sparkle_framework/Versions/B/XPCServices" && ! -e "$sparkle_framework/XPCServices" ]] \
+  || fail "non-sandbox production app contains Sparkle XPC services"
+if ! /usr/bin/otool -L "$main_executable" \
+  | /usr/bin/grep -Fq '@rpath/Sparkle.framework/Versions/B/Sparkle'; then
+  fail "PortDeckMac does not link Sparkle through its bundled framework rpath"
+fi
+if ! /usr/bin/otool -l "$main_executable" \
+  | /usr/bin/grep -Fq '@executable_path/../Frameworks'; then
+  fail "PortDeckMac is missing the app-bundle Frameworks rpath"
+fi
 
 /usr/bin/plutil -lint "$info_plist" >/dev/null
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$info_plist")" == "PortDeckMac" ]] \
@@ -140,6 +159,22 @@ require_file "$licenses_root/PortDeck-Helper-THIRD-PARTY-NOTICES.txt"
   || fail "PortDeckReleaseArchitecture is not $release_architecture"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :PortDeckNodeVersion' "$info_plist")" == "$node_version" ]] \
   || fail "PortDeckNodeVersion is not $node_version"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$info_plist")" == "$sparkle_feed_url" ]] \
+  || fail "SUFeedURL is not the PortDeck beta appcast"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$info_plist")" == "$sparkle_public_ed_key" ]] \
+  || fail "SUPublicEDKey does not match the approved PortDeck Sparkle key"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUEnableAutomaticChecks' "$info_plist")" == "true" ]] \
+  || fail "SUEnableAutomaticChecks is not enabled"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUScheduledCheckInterval' "$info_plist")" == "86400" ]] \
+  || fail "SUScheduledCheckInterval is not one day"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUAutomaticallyUpdate' "$info_plist")" == "false" ]] \
+  || fail "SUAutomaticallyUpdate must remain disabled"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUEnableSystemProfiling' "$info_plist")" == "false" ]] \
+  || fail "SUEnableSystemProfiling must remain disabled"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUVerifyUpdateBeforeExtraction' "$info_plist")" == "true" ]] \
+  || fail "SUVerifyUpdateBeforeExtraction is not enabled"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SURequireSignedFeed' "$info_plist")" == "true" ]] \
+  || fail "SURequireSignedFeed is not enabled"
 
 approved_icon_sha256="$(/usr/libexec/PlistBuddy -c 'Print :PortDeckApprovedIconSHA256' "$info_plist")"
 [[ "$approved_icon_sha256" =~ ^[0-9a-f]{64}$ ]] || fail "approved icon checksum metadata is invalid"
@@ -148,7 +183,7 @@ approved_icon_sha256="$(/usr/libexec/PlistBuddy -c 'Print :PortDeckApprovedIconS
 /usr/bin/iconutil --convert iconset --output "$verification_root/PortDeck.iconset" "$approved_icon" >/dev/null
 
 maximum_app_size_kib=112640
-maximum_file_count=10
+maximum_file_count=75
 app_size_kib="$(/usr/bin/du -sk "$app_bundle" | /usr/bin/awk '{print $1}')"
 [[ "$app_size_kib" -le "$maximum_app_size_kib" ]] \
   || fail "bundle is ${app_size_kib} KiB; maximum is ${maximum_app_size_kib} KiB"
@@ -156,23 +191,32 @@ file_count="$(/usr/bin/find "$app_bundle" -type f | /usr/bin/wc -l | /usr/bin/tr
 [[ "$file_count" -le "$maximum_file_count" ]] \
   || fail "bundle contains ${file_count} files; maximum is ${maximum_file_count}"
 
-expected_files="$(/usr/bin/printf '%s\n' \
+expected_core_files="$(/usr/bin/printf '%s\n' \
   'Contents/CodeResources' \
   'Contents/Info.plist' \
   'Contents/MacOS/PortDeckMac' \
   'Contents/Resources/Licenses/Node.js-LICENSE.txt' \
   'Contents/Resources/Licenses/PortDeck-Helper-THIRD-PARTY-NOTICES.txt' \
   'Contents/Resources/Licenses/PortDeck-LICENSE.txt' \
+  'Contents/Resources/Licenses/Sparkle-LICENSE.txt' \
   'Contents/Resources/PortDeck.icns' \
   'Contents/Resources/PortDeckRuntime/bin/node' \
   'Contents/Resources/PortDeckRuntime/portdeck-cli.js' \
   'Contents/_CodeSignature/CodeResources' | /usr/bin/sort)"
-actual_files="$(/usr/bin/find "$app_bundle" -type f -print | /usr/bin/sed "s#^$app_bundle/##" | /usr/bin/sort)"
-[[ "$actual_files" == "$expected_files" ]] || {
-  echo "Unexpected production app file set:" >&2
-  /usr/bin/diff -u <(/usr/bin/printf '%s\n' "$expected_files") <(/usr/bin/printf '%s\n' "$actual_files") >&2 || true
-  exit 1
-}
+while IFS= read -r expected_core_file; do
+  require_file "$app_bundle/$expected_core_file"
+done <<< "$expected_core_files"
+while IFS= read -r actual_file; do
+  relative_file="${actual_file#"$app_bundle/"}"
+  case "$relative_file" in
+    Contents/Frameworks/Sparkle.framework/*) ;;
+    *)
+      if ! /usr/bin/printf '%s\n' "$expected_core_files" | /usr/bin/grep -Fxq "$relative_file"; then
+        fail "unexpected production app file $relative_file"
+      fi
+      ;;
+  esac
+done < <(/usr/bin/find "$app_bundle" -type f -print)
 
 if /usr/bin/find "$app_bundle" -type f \( -name '.env' -o -name '.env.*' \) -print -quit | /usr/bin/grep -q .; then
   fail "bundle contains an .env file"
@@ -252,12 +296,20 @@ while IFS= read -r -d '' candidate; do
 done < <(/usr/bin/find "$app_bundle/Contents" -type f -print0)
 [[ "$macho_count" -gt 0 ]] || fail "bundle contains no Mach-O executables"
 
+/usr/bin/codesign --verify --strict "$sparkle_autoupdate" \
+  || fail "Sparkle Autoupdate signature is invalid"
+/usr/bin/codesign --verify --strict "$sparkle_updater_app" \
+  || fail "Sparkle Updater.app signature is invalid"
+/usr/bin/codesign --verify --strict "$sparkle_framework" \
+  || fail "Sparkle.framework signature is invalid"
 /usr/bin/codesign --verify --deep --strict "$app_bundle"
 outer_entitlements="$(/usr/bin/codesign -d --entitlements :- "$app_bundle" 2>&1 || true)"
 [[ "$outer_entitlements" != *"com.apple.security.app-sandbox"* ]] \
   || fail "direct-download app unexpectedly enables App Sandbox"
 [[ "$outer_entitlements" != *"com.apple.security.get-task-allow"* ]] \
   || fail "direct-download app contains get-task-allow"
+[[ "$outer_entitlements" != *"com.apple.security.cs.disable-library-validation"* ]] \
+  || fail "production app contains the local-only library validation exception"
 
 xcrun stapler validate "$app_bundle" >/dev/null \
   || fail "stapled notarization ticket is invalid"
@@ -329,6 +381,7 @@ echo "Verified production GitHub ZIP: $release_zip"
 echo "SHA-256: $actual_checksum"
 echo "Architecture: arm64 only"
 echo "Node.js: v${node_version}"
+echo "Sparkle: 2.9.4, arm64-only, unused XPC services removed"
 echo "Signing: Developer ID Application, hardened runtime, secure timestamps"
 echo "Notarization: stapled ticket valid"
 echo "Gatekeeper: accepted quarantined extracted app"

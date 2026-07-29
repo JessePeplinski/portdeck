@@ -34,6 +34,7 @@ struct StatusView: View {
   @ObservedObject var netlifyModel: NetlifyStatusModel
   @ObservedObject var hostingerModel: HostingerStatusModel
   @ObservedObject var providerConfiguration: ProviderConfigurationModel
+  @ObservedObject var updateController: UpdateController
   @AppStorage("PortDeck.selectedDashboardTab") private var selectedDashboardTab = PortdeckDashboardSource.local.rawValue
   @State private var localSearchText = ""
   @State private var vercelSearchText = ""
@@ -419,6 +420,15 @@ struct StatusView: View {
 
         Spacer()
 
+        if updateController.isUpdateAvailable {
+          Button {
+            updateController.checkForUpdates()
+          } label: {
+            Label("New version available", systemImage: "arrow.down.circle.fill")
+          }
+          .help(updateButtonHelp)
+        }
+
         Button {
           SettingsWindowPresenter.present(openSettings: {
             openSettings()
@@ -466,6 +476,13 @@ struct StatusView: View {
       .tint(.secondary)
     }
     .padding(12)
+  }
+
+  private var updateButtonHelp: String {
+    guard let availableVersion = updateController.availableVersion else {
+      return "Download and install the latest PortDeck release"
+    }
+    return "Download and install PortDeck \(availableVersion)"
   }
 
   private var showsHeaderProgress: Bool {

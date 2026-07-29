@@ -3,7 +3,7 @@
 PortDeck is a native macOS menu-bar command center for local development services and read-only deployment-provider health.
 
 > [!IMPORTANT]
-> PortDeck is in pre-release development. `v0.1.0-beta.12` is the next signed and notarized GitHub prerelease target. Source-development, sandbox-probe, local release-candidate, and production direct-download artifacts remain separate workflows.
+> PortDeck is in pre-release development. `v0.1.0-beta.13` is the next signed and notarized GitHub prerelease target and the first release with signed Sparkle updates. Source-development, sandbox-probe, local release-candidate, and production direct-download artifacts remain separate workflows.
 
 ## What PortDeck does
 
@@ -78,7 +78,7 @@ npm run build:mac:release
 npm run verify:mac:release
 ```
 
-The artifact is written to `portdeck-mac/.build/release-artifacts/PortDeck.app`. It bundles the PortDeck helper and the official arm64 Node.js 24.18.0 binary, so local discovery and confirmed service stops do not require this checkout, a PortDeck CLI installation, or a system Node.js installation. Provider CLIs are intentionally external. The verifier copies the app outside the checkout, scrubs `PATH`, exercises the status contract, enforces a 110 MiB app budget and nine-file ceiling, and launches the copied app.
+The artifact is written to `portdeck-mac/.build/release-artifacts/PortDeck.app`. It bundles the PortDeck helper, the official arm64 Node.js 24.18.0 binary, and the arm64 Sparkle runtime, so local discovery and confirmed service stops do not require this checkout, a PortDeck CLI installation, or a system Node.js installation. Provider CLIs are intentionally external. The verifier copies the app outside the checkout, scrubs `PATH`, exercises the status contract, enforces a 110 MiB app budget and 72-file ceiling, validates Sparkle's nested signatures, and launches the copied app.
 
 This artifact is a local packaging candidate, not the public ZIP. It has no production icon, Developer ID signature, or notarization ticket. It is ad-hoc signed with hardened runtime, does not enable App Sandbox, and is expected to fail Gatekeeper assessment.
 
@@ -107,16 +107,16 @@ See [`docs/architecture.md`](docs/architecture.md) for the detailed provider all
 The production pipeline is deliberately separate from `build:mac`, `run-dev-app.sh`, the sandbox probe, and the local ad-hoc candidate. It:
 
 1. Uses the approved, checksum-pinned production `.icns` in `portdeck-mac/Resources`, and requires a valid Developer ID Application identity and notarytool Keychain profile.
-2. Builds the arm64 release app with the bundled local-discovery helper and Node.js runtime, strips both Mach-O executables, and keeps matching Swift debug symbols outside the app.
+2. Builds the arm64 release app with the bundled local-discovery helper, Node.js runtime, and Sparkle 2.9.4 framework; strips bundled Mach-O code; and keeps matching Swift debug symbols outside the app.
 3. Excludes every provider CLI and provider dependency tree from the bundle.
-4. Signs every nested Mach-O individually with hardened runtime and secure timestamps, then signs the outer app without App Sandbox.
+4. Signs every nested Mach-O and Sparkle helper app inside-out with hardened runtime and secure timestamps, then signs the outer app without App Sandbox.
 5. Notarizes a temporary ZIP, inspects the accepted log, staples the ticket to `PortDeck.app`, and creates the final ZIP with `ditto -c -k --keepParent`.
 6. Creates a drag-to-Applications DMG with `create-dmg`, signs and separately notarizes the disk image, then staples the DMG ticket.
 7. Verifies the final ZIP and DMG outside the repository under simulated quarantine, isolated state and home directories, and a scrubbed `PATH`, with hard limits of 110 MiB installed, 45,000,000 ZIP bytes, and 55,000,000 DMG bytes.
 
 Install the Finder-layout dependency with `brew install create-dmg`, then run the release preflight with `npm run preflight:mac:github-release`. It checks the packaging tools, local signing metadata, and selected notarytool profile with a silent, read-only Apple Notary history request when the profile is not visible through the legacy Keychain lookup; it never uploads an artifact. The signing-and-notarization build is additionally guarded by `PORTDECK_APPROVE_SIGNING_AND_NOTARIZATION=YES` and must not run until the release owner explicitly approves signing and the Apple uploads. See [`docs/distribution.md`](docs/distribution.md) for the complete commands, fixed inputs, and verification contract.
 
-Homebrew installations update through `brew upgrade --cask JessePeplinski/tap/portdeck@beta`; manual installations use the latest GitHub Release DMG, with the ZIP retained for Homebrew and as a fallback. A universal/x86_64 package, in-app updater, and App Store package are not part of this beta.
+Beginning with beta.13, signed manual and Homebrew installations check the signed beta appcast daily. PortDeck surfaces a quiet **New version available** action in the menu and keeps **Check for Updates…** in Settings; Sparkle does not silently install updates and system profiling is disabled. Development builds do not contact the production feed. Updates use the full notarized ZIP; delta updates, a universal/x86_64 package, and App Store distribution remain outside this beta.
 
 ## Contributing
 

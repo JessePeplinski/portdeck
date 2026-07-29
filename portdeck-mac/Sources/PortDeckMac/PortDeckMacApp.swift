@@ -22,6 +22,7 @@ struct PortDeckMacApp: App {
   @StateObject private var hostingerModel = HostingerStatusModel()
   @StateObject private var providerConfiguration = ProviderConfigurationModel()
   @StateObject private var launchAtLoginModel = LaunchAtLoginModel()
+  @StateObject private var updateController = UpdateController()
 
   var body: some Scene {
     MenuBarExtra {
@@ -36,7 +37,8 @@ struct PortDeckMacApp: App {
         flyModel: flyModel,
         netlifyModel: netlifyModel,
         hostingerModel: hostingerModel,
-        providerConfiguration: providerConfiguration
+        providerConfiguration: providerConfiguration,
+        updateController: updateController
       )
         .frame(width: 500, height: menuWindowHeight)
     } label: {
@@ -51,7 +53,8 @@ struct PortDeckMacApp: App {
     Settings {
       SettingsView(
         launchAtLoginModel: launchAtLoginModel,
-        statusModel: model
+        statusModel: model,
+        updateController: updateController
       )
     }
   }
