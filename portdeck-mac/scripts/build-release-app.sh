@@ -25,6 +25,8 @@ bundled_node="$runtime_root/bin/node"
 bundled_cli="$runtime_root/portdeck-cli.js"
 licenses_root="$staging_app/Contents/Resources/Licenses"
 node_entitlements="$package_root/Config/PortDeckNodeRelease.entitlements"
+local_entitlements="$package_root/Config/PortDeckLocalRelease.entitlements"
+sparkle_framework="$staging_app/Contents/Frameworks/Sparkle.framework"
 
 verify_node_archive() {
   local archive_path="$1"
@@ -47,7 +49,11 @@ download_node_archive() {
 
 /bin/mkdir -p "$artifact_root" "$cache_root"
 /bin/rm -rf "$staging_root"
-/bin/mkdir -p "$staging_app/Contents/MacOS" "$runtime_root/bin" "$licenses_root"
+/bin/mkdir -p \
+  "$staging_app/Contents/MacOS" \
+  "$staging_app/Contents/Frameworks" \
+  "$runtime_root/bin" \
+  "$licenses_root"
 
 if [[ -f "$node_archive_path" ]] && ! verify_node_archive "$node_archive_path"; then
   echo "Discarding cached Node.js archive with an invalid checksum." >&2
@@ -82,6 +88,10 @@ swift_bin_path="$(swift build \
   --show-bin-path)"
 
 /bin/cp "$swift_bin_path/PortDeckMac" "$main_executable"
+"$package_root/scripts/stage-sparkle-framework.sh" \
+  "$swift_bin_path/Sparkle.framework" \
+  "$sparkle_framework" \
+  arm64
 /bin/rm -rf "$debug_symbols"
 /usr/bin/dsymutil "$main_executable" -o "$debug_symbols"
 /usr/bin/strip -Sx "$main_executable"
@@ -96,6 +106,7 @@ npm run bundle:helper --workspace portdeck-app -- \
 /bin/chmod 755 "$bundled_node" "$bundled_cli"
 /bin/cp "$node_extract_root/LICENSE" "$licenses_root/Node.js-LICENSE.txt"
 /bin/cp "$repo_root/LICENSE" "$licenses_root/PortDeck-LICENSE.txt"
+/bin/cp "$swift_scratch/checkouts/Sparkle/LICENSE" "$licenses_root/Sparkle-LICENSE.txt"
 
 if [[ "$(/usr/bin/lipo -archs "$main_executable")" != "arm64" ]]; then
   echo "PortDeckMac is not an arm64-only executable." >&2
@@ -119,6 +130,24 @@ fi
   --sign - \
   --entitlements "$node_entitlements" \
   "$bundled_node"
+/usr/bin/codesign \
+  --force \
+  --options runtime \
+  --timestamp=none \
+  --sign - \
+  "$sparkle_framework/Versions/B/Autoupdate"
+/usr/bin/codesign \
+  --force \
+  --options runtime \
+  --timestamp=none \
+  --sign - \
+  "$sparkle_framework/Versions/B/Updater.app"
+/usr/bin/codesign \
+  --force \
+  --options runtime \
+  --timestamp=none \
+  --sign - \
+  "$sparkle_framework"
 if [[ "$("$bundled_node" --version)" != "v${node_version}" ]]; then
   echo "Bundled Node.js version does not match v${node_version} after stripping and signing." >&2
   exit 1
@@ -128,6 +157,7 @@ fi
   --options runtime \
   --timestamp=none \
   --sign - \
+  --entitlements "$local_entitlements" \
   "$staging_app"
 
 /usr/bin/codesign --verify --strict "$bundled_node"

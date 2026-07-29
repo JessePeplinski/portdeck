@@ -22,8 +22,13 @@ runtime_root="$app_bundle/Contents/Resources/PortDeckRuntime"
 bundled_node="$runtime_root/bin/node"
 bundled_cli="$runtime_root/portdeck-cli.js"
 licenses_root="$app_bundle/Contents/Resources/Licenses"
+sparkle_framework="$app_bundle/Contents/Frameworks/Sparkle.framework"
+sparkle_binary="$sparkle_framework/Versions/B/Sparkle"
+sparkle_autoupdate="$sparkle_framework/Versions/B/Autoupdate"
+sparkle_updater_app="$sparkle_framework/Versions/B/Updater.app"
+sparkle_updater="$sparkle_updater_app/Contents/MacOS/Updater"
 maximum_app_size_kib=112640
-maximum_file_count=9
+maximum_file_count=72
 
 fail() {
   echo "Release candidate verification failed: $*" >&2
@@ -45,6 +50,10 @@ require_executable "$bundled_cli"
 require_file "$licenses_root/PortDeck-LICENSE.txt"
 require_file "$licenses_root/Node.js-LICENSE.txt"
 require_file "$licenses_root/PortDeck-Helper-THIRD-PARTY-NOTICES.txt"
+require_file "$licenses_root/Sparkle-LICENSE.txt"
+require_executable "$sparkle_binary"
+require_executable "$sparkle_autoupdate"
+require_executable "$sparkle_updater"
 
 /usr/bin/plutil -lint "$info_plist" >/dev/null
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$info_plist")" == "PortDeckMac" ]] \
@@ -64,14 +73,26 @@ require_file "$licenses_root/PortDeck-Helper-THIRD-PARTY-NOTICES.txt"
   || fail "PortDeckMac is not arm64-only"
 [[ "$(/usr/bin/lipo -archs "$bundled_node")" == "arm64" ]] \
   || fail "bundled Node.js is not arm64-only"
+for sparkle_executable in "$sparkle_binary" "$sparkle_autoupdate" "$sparkle_updater"; do
+  [[ "$(/usr/bin/lipo -archs "$sparkle_executable")" == "arm64" ]] \
+    || fail "Sparkle runtime is not arm64-only: $sparkle_executable"
+done
 [[ "$("$bundled_node" --version)" == "v${node_version}" ]] \
   || fail "bundled Node.js is not v${node_version}"
 
-if /usr/bin/find "$app_bundle" -type l -print -quit | /usr/bin/grep -q .; then
-  fail "the release candidate contains a symlink"
-fi
 if [[ -e "$app_bundle/Contents/Resources/ProviderRuntimes" ]]; then
   fail "provider CLIs must not be bundled in this release candidate"
+fi
+if [[ -e "$sparkle_framework/Versions/B/XPCServices" || -e "$sparkle_framework/XPCServices" ]]; then
+  fail "non-sandbox release candidate contains Sparkle XPC services"
+fi
+if ! /usr/bin/otool -L "$main_executable" \
+  | /usr/bin/grep -Fq '@rpath/Sparkle.framework/Versions/B/Sparkle'; then
+  fail "PortDeckMac does not link Sparkle through its bundled framework rpath"
+fi
+if ! /usr/bin/otool -l "$main_executable" \
+  | /usr/bin/grep -Fq '@executable_path/../Frameworks'; then
+  fail "PortDeckMac is missing the app-bundle Frameworks rpath"
 fi
 
 app_size_kib="$(/usr/bin/du -sk "$app_bundle" | /usr/bin/awk '{print $1}')"
@@ -81,21 +102,39 @@ file_count="$(/usr/bin/find "$app_bundle" -type f | /usr/bin/wc -l | /usr/bin/tr
 [[ "$file_count" -le "$maximum_file_count" ]] \
   || fail "bundle contains ${file_count} files; maximum is ${maximum_file_count}"
 
-expected_files="$(/usr/bin/printf '%s\n' \
+expected_core_files="$(/usr/bin/printf '%s\n' \
   'Contents/Info.plist' \
   'Contents/MacOS/PortDeckMac' \
   'Contents/Resources/Licenses/Node.js-LICENSE.txt' \
   'Contents/Resources/Licenses/PortDeck-Helper-THIRD-PARTY-NOTICES.txt' \
   'Contents/Resources/Licenses/PortDeck-LICENSE.txt' \
+  'Contents/Resources/Licenses/Sparkle-LICENSE.txt' \
   'Contents/Resources/PortDeckRuntime/bin/node' \
   'Contents/Resources/PortDeckRuntime/portdeck-cli.js' \
   'Contents/_CodeSignature/CodeResources' | /usr/bin/sort)"
-actual_files="$(/usr/bin/find "$app_bundle" -type f -print | /usr/bin/sed "s#^$app_bundle/##" | /usr/bin/sort)"
-[[ "$actual_files" == "$expected_files" ]] || {
-  echo "Unexpected release-candidate file set:" >&2
-  /usr/bin/diff -u <(/usr/bin/printf '%s\n' "$expected_files") <(/usr/bin/printf '%s\n' "$actual_files") >&2 || true
-  exit 1
-}
+while IFS= read -r expected_core_file; do
+  require_file "$app_bundle/$expected_core_file"
+done <<< "$expected_core_files"
+while IFS= read -r actual_file; do
+  relative_file="${actual_file#"$app_bundle/"}"
+  case "$relative_file" in
+    Contents/Frameworks/Sparkle.framework/*) ;;
+    *)
+      if ! /usr/bin/printf '%s\n' "$expected_core_files" | /usr/bin/grep -Fxq "$relative_file"; then
+        fail "unexpected release-candidate file $relative_file"
+      fi
+      ;;
+  esac
+done < <(/usr/bin/find "$app_bundle" -type f -print)
+
+while IFS= read -r -d '' symlink; do
+  resolved_target="$(/bin/realpath "$symlink" 2>/dev/null)" \
+    || fail "release candidate contains a broken symlink: $symlink"
+  case "$resolved_target" in
+    "$sparkle_framework"/*) ;;
+    *) fail "release candidate symlink escapes Sparkle.framework: $symlink" ;;
+  esac
+done < <(/usr/bin/find "$app_bundle" -type l -print0)
 
 for forbidden_path in "$repo_root" "$HOME"; do
   if LC_ALL=C /usr/bin/grep -aRF -- "$forbidden_path" "$app_bundle" >/dev/null 2>&1; then
@@ -109,6 +148,9 @@ if LC_ALL=C /usr/bin/grep -aER -- \
 fi
 
 /usr/bin/codesign --verify --strict "$bundled_node"
+/usr/bin/codesign --verify --strict "$sparkle_autoupdate"
+/usr/bin/codesign --verify --strict "$sparkle_updater_app"
+/usr/bin/codesign --verify --strict "$sparkle_framework"
 /usr/bin/codesign --verify --deep --strict "$app_bundle"
 node_signature="$(/usr/bin/codesign -dvvv "$bundled_node" 2>&1)"
 app_signature="$(/usr/bin/codesign -dvvv "$app_bundle" 2>&1)"
@@ -116,12 +158,19 @@ app_signature="$(/usr/bin/codesign -dvvv "$app_bundle" 2>&1)"
   || fail "bundled Node.js is not ad-hoc signed with hardened runtime"
 [[ "$app_signature" == *"Signature=adhoc"* && "$app_signature" == *"runtime"* ]] \
   || fail "PortDeck.app is not ad-hoc signed with hardened runtime"
+for sparkle_code in "$sparkle_autoupdate" "$sparkle_updater_app" "$sparkle_framework"; do
+  sparkle_signature="$(/usr/bin/codesign -dvvv "$sparkle_code" 2>&1)"
+  [[ "$sparkle_signature" == *"Signature=adhoc"* && "$sparkle_signature" == *"runtime"* ]] \
+    || fail "Sparkle code is not ad-hoc signed with hardened runtime: $sparkle_code"
+done
 node_entitlements="$(/usr/bin/codesign -d --entitlements :- "$bundled_node" 2>&1 || true)"
 [[ "$node_entitlements" == *"com.apple.security.cs.allow-jit"* ]] \
   || fail "bundled Node.js is missing its required JIT entitlement"
 entitlements="$(/usr/bin/codesign -d --entitlements :- "$app_bundle" 2>&1 || true)"
 [[ "$entitlements" != *"com.apple.security.app-sandbox"* ]] \
   || fail "direct-download release candidate unexpectedly enables App Sandbox"
+[[ "$entitlements" == *"com.apple.security.cs.disable-library-validation"* ]] \
+  || fail "ad-hoc release candidate is missing its development-only library validation exception"
 
 gatekeeper_output_file="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/portdeck-spctl.XXXXXX")"
 if /usr/sbin/spctl --assess --type execute --verbose=4 "$app_bundle" >"$gatekeeper_output_file" 2>&1; then
@@ -203,6 +252,7 @@ echo "Verified local arm64 release candidate: $app_bundle"
 echo "Node.js: v${node_version}"
 echo "Main executable architecture: $(/usr/bin/lipo -archs "$main_executable")"
 echo "Node architecture: $(/usr/bin/lipo -archs "$bundled_node")"
+echo "Sparkle: 2.9.4, arm64-only, unused XPC services removed"
 echo "Signing: ad-hoc hardened runtime, App Sandbox disabled"
 echo "Gatekeeper rejection (expected until Developer ID signing and notarization): $gatekeeper_output"
 echo "Provider CLIs: external-only; missing/unsupported setup tests passed"

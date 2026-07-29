@@ -53,6 +53,20 @@ set_plist_string() {
   /usr/libexec/PlistBuddy -c "Add :${key} string ${value}" "$info_plist"
 }
 
+set_plist_bool() {
+  local key="$1"
+  local value="$2"
+  /usr/libexec/PlistBuddy -c "Delete :${key}" "$info_plist" >/dev/null 2>&1 || true
+  /usr/libexec/PlistBuddy -c "Add :${key} bool ${value}" "$info_plist"
+}
+
+set_plist_integer() {
+  local key="$1"
+  local value="$2"
+  /usr/libexec/PlistBuddy -c "Delete :${key}" "$info_plist" >/dev/null 2>&1 || true
+  /usr/libexec/PlistBuddy -c "Add :${key} integer ${value}" "$info_plist"
+}
+
 set_plist_string CFBundleShortVersionString "$marketing_version"
 set_plist_string CFBundleVersion "$bundle_version"
 set_plist_string CFBundleIconFile "PortDeck.icns"
@@ -61,9 +75,21 @@ set_plist_string PortDeckReleaseTag "$release_tag"
 set_plist_string PortDeckReleaseArchitecture "$release_architecture"
 set_plist_string PortDeckNodeVersion "$node_version"
 set_plist_string PortDeckApprovedIconSHA256 "$approved_icon_sha256"
+set_plist_string SUFeedURL "$sparkle_feed_url"
+set_plist_string SUPublicEDKey "$sparkle_public_ed_key"
+set_plist_bool SUEnableAutomaticChecks true
+set_plist_integer SUScheduledCheckInterval 86400
+set_plist_bool SUAutomaticallyUpdate false
+set_plist_bool SUEnableSystemProfiling false
+set_plist_bool SUVerifyUpdateBeforeExtraction true
+set_plist_bool SURequireSignedFeed true
+set_plist_integer \
+  SUSignedFeedFailureExpirationInterval \
+  "$sparkle_signed_feed_failure_expiration_interval"
 
 main_executable="$staging_app/Contents/MacOS/PortDeckMac"
 bundled_node="$staging_app/Contents/Resources/PortDeckRuntime/bin/node"
+sparkle_framework="$staging_app/Contents/Frameworks/Sparkle.framework"
 
 sign_macho() {
   local executable="$1"
@@ -105,6 +131,19 @@ done < <(/usr/bin/find "$staging_app/Contents" -type f -print0)
 while IFS=$'\t' read -r _depth candidate; do
   sign_macho "$candidate"
 done < <(/usr/bin/sort -rn "$macho_list")
+
+/usr/bin/codesign \
+  --force \
+  --options runtime \
+  --timestamp \
+  --sign "$signing_identity" \
+  "$sparkle_framework/Versions/B/Updater.app"
+/usr/bin/codesign \
+  --force \
+  --options runtime \
+  --timestamp \
+  --sign "$signing_identity" \
+  "$sparkle_framework"
 
 /usr/bin/codesign \
   --force \
