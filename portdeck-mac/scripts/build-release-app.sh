@@ -97,6 +97,7 @@ swift_bin_path="$(swift build \
 /usr/bin/strip -Sx "$main_executable"
 /bin/chmod 755 "$main_executable"
 /bin/cp "$package_root/Config/Info.plist" "$staging_app/Contents/Info.plist"
+"$package_root/scripts/apply-version-metadata.sh" "$staging_app/Contents/Info.plist"
 
 npm run bundle:helper --workspace portdeck-app -- \
   --outfile "$bundled_cli" \

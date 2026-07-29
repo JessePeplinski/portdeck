@@ -2,6 +2,27 @@ import Foundation
 import Testing
 @testable import PortDeckMac
 
+@Test func versionInfoPrefersTheReleaseVersionUsedBySparkle() {
+  let version = PortDeckVersionInfo(infoDictionary: [
+    "PortDeckReleaseVersion": "0.1.0-beta.14",
+    "CFBundleShortVersionString": "0.1.0",
+    "CFBundleVersion": "14"
+  ])
+
+  #expect(version.displayVersion == "0.1.0-beta.14")
+}
+
+@Test func versionInfoFallsBackForSourceAndIncompleteBundles() {
+  #expect(PortDeckVersionInfo(infoDictionary: [
+    "CFBundleShortVersionString": "0.1.0",
+    "CFBundleVersion": "14"
+  ]).displayVersion == "0.1.0")
+  #expect(PortDeckVersionInfo(infoDictionary: [
+    "CFBundleVersion": "14"
+  ]).displayVersion == "14")
+  #expect(PortDeckVersionInfo(infoDictionary: [:]).displayVersion == "Unknown")
+}
+
 @MainActor
 @Test func updaterStartsOnlyForConfiguredProductionReleases() {
   let productionInfo: [String: Any] = [

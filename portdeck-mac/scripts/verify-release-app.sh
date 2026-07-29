@@ -11,10 +11,13 @@ if [[ "${1:-}" == "--production-dmg" ]]; then
   exec "$(cd "$(dirname "$0")" && pwd)/verify-github-dmg-release.sh" "$@"
 fi
 
-package_root="$(cd "$(dirname "$0")/.." && pwd)"
+script_root="$(cd "$(dirname "$0")" && pwd)"
+package_root="$(cd "$script_root/.." && pwd)"
 repo_root="$(cd "$package_root/.." && pwd)"
 app_bundle="${1:-$package_root/.build/release-artifacts/PortDeck.app}"
 node_version="24.18.0"
+# shellcheck source=release-config.sh
+source "$script_root/release-config.sh"
 
 main_executable="$app_bundle/Contents/MacOS/PortDeckMac"
 info_plist="$app_bundle/Contents/Info.plist"
@@ -64,10 +67,14 @@ require_executable "$sparkle_updater"
   || fail "CFBundlePackageType is not APPL"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$info_plist")" == "14.0" ]] \
   || fail "LSMinimumSystemVersion is not 14.0"
-[[ -n "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")" ]] \
-  || fail "CFBundleShortVersionString is empty"
-[[ -n "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")" ]] \
-  || fail "CFBundleVersion is empty"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")" == "$marketing_version" ]] \
+  || fail "CFBundleShortVersionString is not $marketing_version"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")" == "$bundle_version" ]] \
+  || fail "CFBundleVersion is not $bundle_version"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :PortDeckReleaseVersion' "$info_plist")" == "$release_version" ]] \
+  || fail "PortDeckReleaseVersion is not $release_version"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :PortDeckReleaseTag' "$info_plist")" == "$release_tag" ]] \
+  || fail "PortDeckReleaseTag is not $release_tag"
 
 [[ "$(/usr/bin/lipo -archs "$main_executable")" == "arm64" ]] \
   || fail "PortDeckMac is not arm64-only"

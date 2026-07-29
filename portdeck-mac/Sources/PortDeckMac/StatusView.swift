@@ -447,13 +447,15 @@ struct StatusView: View {
       Divider()
 
       HStack(spacing: 3) {
+        Text("Version \(updateController.currentVersion)")
+
+        Spacer()
+
         Text("Built by")
 
         Link(FooterAttribution.jesseName, destination: FooterAttribution.jesseURL)
         Text("/")
         Link(FooterAttribution.studioName, destination: FooterAttribution.studioURL)
-
-        Spacer()
 
         FooterAttributionLink(
           title: "Jesse Peplinski’s website",

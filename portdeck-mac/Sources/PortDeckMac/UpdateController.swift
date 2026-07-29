@@ -2,6 +2,28 @@ import Combine
 import Foundation
 @preconcurrency import Sparkle
 
+struct PortDeckVersionInfo: Equatable {
+  let displayVersion: String
+
+  init(infoDictionary: [String: Any]) {
+    if let releaseVersion = infoDictionary["PortDeckReleaseVersion"] as? String,
+      !releaseVersion.isEmpty
+    {
+      displayVersion = releaseVersion
+    } else if let marketingVersion = infoDictionary["CFBundleShortVersionString"] as? String,
+      !marketingVersion.isEmpty
+    {
+      displayVersion = marketingVersion
+    } else if let bundleVersion = infoDictionary["CFBundleVersion"] as? String,
+      !bundleVersion.isEmpty
+    {
+      displayVersion = bundleVersion
+    } else {
+      displayVersion = "Unknown"
+    }
+  }
+}
+
 struct PortDeckUpdateConfiguration: Equatable {
   let releaseVersion: String
   let feedURL: URL
@@ -33,6 +55,7 @@ final class UpdateController: NSObject, ObservableObject {
   @Published private(set) var canCheckForUpdates = false
   @Published private(set) var automaticallyChecksForUpdates = false
 
+  let currentVersion: String
   private(set) var isEnabled: Bool
   private var updaterController: SPUStandardUpdaterController?
   private var cancellables: Set<AnyCancellable> = []
@@ -42,8 +65,10 @@ final class UpdateController: NSObject, ObservableObject {
   }
 
   init(bundle: Bundle = .main, startUpdater: Bool = true) {
+    let infoDictionary = bundle.infoDictionary ?? [:]
+    currentVersion = PortDeckVersionInfo(infoDictionary: infoDictionary).displayVersion
     let configuration = PortDeckUpdateConfiguration(
-      infoDictionary: bundle.infoDictionary ?? [:]
+      infoDictionary: infoDictionary
     )
     isEnabled = configuration != nil
     super.init()
