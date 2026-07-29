@@ -1163,21 +1163,17 @@ private struct ProjectSection: View {
         Button {
           onToggle()
         } label: {
-          HStack(spacing: 9) {
-            Image(systemName: projectIconName)
-              .font(.title3)
-              .foregroundStyle(.secondary)
-              .frame(width: 22)
+          HStack(spacing: 8) {
             Text(project.group.projectName)
               .font(.headline)
               .lineLimit(1)
               .layoutPriority(1)
-            Text("\(projectSummary.serviceCount) \(plural(projectSummary.serviceCount, singular: "service", plural: "services"))")
-              .font(.caption2)
-              .foregroundStyle(.secondary)
-              .padding(.horizontal, 6)
-              .padding(.vertical, 3)
-              .background(.quaternary.opacity(0.65), in: Capsule())
+            if let headerBranchMetadata {
+              MetadataChip(
+                text: headerBranchMetadata.text,
+                systemImage: headerBranchMetadata.systemImage
+              )
+            }
             if let problemLabel = projectSummary.problemLabel {
               Text(problemLabel)
                 .font(.caption2.weight(.semibold))
@@ -1237,6 +1233,7 @@ private struct ProjectSection: View {
               worktree: worktree,
               preferNamedURLs: preferNamedURLs,
               showsHeader: worktree.id == project.worktrees.first?.id,
+              branchDisplayedInProjectHeader: headerBranchMetadata != nil,
               projectWorktreeCount: project.group.worktrees.count,
               isStopping: isStopping,
               stoppingProjectTarget: stoppingProjectTarget,
@@ -1245,7 +1242,8 @@ private struct ProjectSection: View {
             )
           }
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, 2)
+        .padding(.trailing, 10)
         .padding(.bottom, 10)
       }
     }
@@ -1256,11 +1254,17 @@ private struct ProjectSection: View {
     )
   }
 
-  private var projectIconName: String {
-    if project.group.projectName.contains(".") {
-      return "globe"
+  private var headerBranchMetadata: LocalMetadataItem? {
+    guard project.group.worktrees.count == 1, let worktree = project.worktrees.first else {
+      return nil
     }
-    return "rectangle.stack"
+
+    return LocalStatusPresentation.worktreeMetadata(
+      worktree.worktree,
+      projectName: project.group.projectName,
+      repoRoot: project.group.repoRoot,
+      projectWorktreeCount: project.group.worktrees.count
+    ).first { $0.systemImage == "arrow.triangle.branch" }
   }
 
   private var projectSummary: LocalProjectSummary {
@@ -1374,6 +1378,7 @@ private struct WorktreeBlock: View {
   let worktree: VisibleWorktreeGroup
   let preferNamedURLs: Bool
   let showsHeader: Bool
+  let branchDisplayedInProjectHeader: Bool
   let projectWorktreeCount: Int
   let isStopping: Bool
   let stoppingProjectTarget: ProjectStopAllTarget?
@@ -1423,7 +1428,9 @@ private struct WorktreeBlock: View {
       projectName: projectName,
       repoRoot: repoRoot,
       projectWorktreeCount: projectWorktreeCount
-    )
+    ).filter { item in
+      !branchDisplayedInProjectHeader || item.systemImage != "arrow.triangle.branch"
+    }
   }
 
   private var shouldShowWorktreeActions: Bool {
@@ -2441,10 +2448,6 @@ private struct MetadataChip: View {
       .padding(.vertical, 3)
       .background(.quaternary.opacity(0.75), in: Capsule())
   }
-}
-
-private func plural(_ count: Int, singular: String, plural: String) -> String {
-  count == 1 ? singular : plural
 }
 
 private extension PortdeckDashboardSource {
