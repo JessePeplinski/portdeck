@@ -49,12 +49,23 @@ final class ProviderConfigurationModel: ObservableObject {
   }
 
   func canMoveUp(_ provider: PortdeckDashboardSource) -> Bool {
-    guard let index = orderedProviders.firstIndex(of: provider) else { return false }
-    return index > orderedProviders.startIndex
+    guard
+      provider != .local,
+      let index = orderedProviders.firstIndex(of: provider)
+    else {
+      return false
+    }
+    let firstMovableIndex = orderedProviders.first == .local ? 1 : 0
+    return index > firstMovableIndex
   }
 
   func canMoveDown(_ provider: PortdeckDashboardSource) -> Bool {
-    guard let index = orderedProviders.firstIndex(of: provider) else { return false }
+    guard
+      provider != .local,
+      let index = orderedProviders.firstIndex(of: provider)
+    else {
+      return false
+    }
     return index < orderedProviders.index(before: orderedProviders.endIndex)
   }
 
@@ -85,7 +96,7 @@ final class ProviderConfigurationModel: ObservableObject {
 
   @discardableResult
   func moveUp(_ provider: PortdeckDashboardSource) -> Bool {
-    guard let index = orderedProviders.firstIndex(of: provider), index > orderedProviders.startIndex else {
+    guard canMoveUp(provider), let index = orderedProviders.firstIndex(of: provider) else {
       return false
     }
 
@@ -99,6 +110,7 @@ final class ProviderConfigurationModel: ObservableObject {
   @discardableResult
   func moveDown(_ provider: PortdeckDashboardSource) -> Bool {
     guard
+      canMoveDown(provider),
       let index = orderedProviders.firstIndex(of: provider),
       index < orderedProviders.index(before: orderedProviders.endIndex)
     else {
@@ -107,6 +119,41 @@ final class ProviderConfigurationModel: ObservableObject {
 
     var updatedProviders = orderedProviders
     updatedProviders.swapAt(index, updatedProviders.index(after: index))
+    orderedProviders = updatedProviders
+    persist()
+    return true
+  }
+
+  @discardableResult
+  func move(
+    _ provider: PortdeckDashboardSource,
+    relativeTo target: PortdeckDashboardSource,
+    insertAfter: Bool
+  ) -> Bool {
+    guard
+      provider != .local,
+      provider != target,
+      orderedProviders.contains(provider),
+      orderedProviders.contains(target)
+    else {
+      return false
+    }
+
+    var updatedProviders = orderedProviders
+    updatedProviders.removeAll { $0 == provider }
+    guard let targetIndex = updatedProviders.firstIndex(of: target) else {
+      return false
+    }
+
+    let requestedIndex = insertAfter ? targetIndex + 1 : targetIndex
+    let firstMovableIndex = updatedProviders.first == .local ? 1 : 0
+    let insertionIndex = max(firstMovableIndex, min(requestedIndex, updatedProviders.endIndex))
+    updatedProviders.insert(provider, at: insertionIndex)
+
+    guard updatedProviders != orderedProviders else {
+      return false
+    }
+
     orderedProviders = updatedProviders
     persist()
     return true
@@ -168,6 +215,11 @@ final class ProviderConfigurationModel: ObservableObject {
 
     guard !orderedProviders.isEmpty, hiddenProviders.count < orderedProviders.count else {
       return defaultConfiguration
+    }
+
+    if let localIndex = orderedProviders.firstIndex(of: .local), localIndex != orderedProviders.startIndex {
+      orderedProviders.remove(at: localIndex)
+      orderedProviders.insert(.local, at: orderedProviders.startIndex)
     }
 
     return Configuration(

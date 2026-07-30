@@ -62,11 +62,25 @@ import Testing
   let model = ProviderConfigurationModel(userDefaults: makeProviderDefaults())
 
   #expect(!model.moveUp(.local))
+  #expect(!model.moveDown(.local))
+  #expect(!model.moveUp(.vercel))
   #expect(!model.moveDown(.hostinger))
-  #expect(model.moveDown(.local))
-  #expect(model.orderedProviders == [.vercel, .local, .convex, .github, .supabase, .cloudflare, .railway, .fly, .netlify, .hostinger])
   #expect(model.moveUp(.github))
-  #expect(model.orderedProviders == [.vercel, .local, .github, .convex, .supabase, .cloudflare, .railway, .fly, .netlify, .hostinger])
+  #expect(model.orderedProviders == [.local, .vercel, .github, .convex, .supabase, .cloudflare, .railway, .fly, .netlify, .hostinger])
+}
+
+@MainActor
+@Test func providerConfigurationMovesProvidersByDropPositionWhileKeepingLocalFirst() {
+  let model = ProviderConfigurationModel(userDefaults: makeProviderDefaults())
+
+  #expect(model.move(.github, relativeTo: .vercel, insertAfter: false))
+  #expect(model.orderedProviders == [.local, .github, .vercel, .convex, .supabase, .cloudflare, .railway, .fly, .netlify, .hostinger])
+
+  #expect(model.move(.hostinger, relativeTo: .local, insertAfter: false))
+  #expect(model.orderedProviders == [.local, .hostinger, .github, .vercel, .convex, .supabase, .cloudflare, .railway, .fly, .netlify])
+
+  #expect(!model.move(.local, relativeTo: .github, insertAfter: true))
+  #expect(model.orderedProviders.first == .local)
 }
 
 @MainActor
@@ -121,7 +135,7 @@ import Testing
   )
 
   let model = ProviderConfigurationModel(userDefaults: defaults)
-  #expect(model.orderedProviders == [.github, .local, .vercel, .convex, .supabase, .cloudflare, .railway, .fly, .netlify, .hostinger])
+  #expect(model.orderedProviders == [.local, .github, .vercel, .convex, .supabase, .cloudflare, .railway, .fly, .netlify, .hostinger])
   #expect(model.hiddenProviders == [.local])
 
   let canonicalData = try #require(defaults.data(forKey: ProviderConfigurationModel.userDefaultsKey))
@@ -141,7 +155,7 @@ import Testing
   )
 
   let model = ProviderConfigurationModel(userDefaults: defaults)
-  #expect(model.orderedProviders == [.convex, .local, .vercel, .github, .supabase, .cloudflare, .railway, .fly, .netlify, .hostinger])
+  #expect(model.orderedProviders == [.local, .convex, .vercel, .github, .supabase, .cloudflare, .railway, .fly, .netlify, .hostinger])
   #expect(model.hiddenProviders == [.convex])
   #expect(model.isVisible(.github))
   #expect(model.isVisible(.supabase))
@@ -158,9 +172,9 @@ import Testing
 
   #expect(model.moveUp(.github))
   #expect(model.moveUp(.github))
-  #expect(model.moveUp(.github))
+  #expect(!model.moveUp(.github))
   #expect(model.setVisible(false, for: .convex))
-  #expect(model.visibleProviders == [.github, .local, .vercel, .supabase, .cloudflare, .railway, .fly, .netlify, .hostinger])
+  #expect(model.visibleProviders == [.local, .github, .vercel, .supabase, .cloudflare, .railway, .fly, .netlify, .hostinger])
 }
 
 @MainActor
@@ -213,7 +227,7 @@ import Testing
   let snapshotCount = providerModel.sites.count
 
   configuration.select(.netlify)
-  #expect(configuration.moveDown(.local))
+  #expect(configuration.moveDown(.vercel))
 
   #expect(configuration.selectedProvider == .netlify)
   #expect(ObjectIdentifier(providerModel) == providerIdentity)

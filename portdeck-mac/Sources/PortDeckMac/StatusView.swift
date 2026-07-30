@@ -2878,6 +2878,9 @@ private struct CommandPaletteKeyboardMonitor: NSViewRepresentable {
 private struct ProviderCustomizationOverlay: View {
   @ObservedObject var model: ProviderConfigurationModel
   let onDismiss: () -> Void
+  @State private var draggedProvider: PortdeckDashboardSource?
+  @State private var dropTarget: PortdeckDashboardSource?
+  @State private var providerRowFrames: [PortdeckDashboardSource: CGRect] = [:]
 
   var body: some View {
     ZStack {
@@ -2891,7 +2894,7 @@ private struct ProviderCustomizationOverlay: View {
             Text("Customize providers")
               .font(.headline)
               .fontWeight(.semibold)
-            Text("Local stays first; providers can be reordered.")
+            Text("Drag to reorder. Local stays first.")
               .font(.caption)
               .foregroundStyle(.secondary)
           }
@@ -2910,10 +2913,18 @@ private struct ProviderCustomizationOverlay: View {
 
         Divider()
 
-        VStack(spacing: 4) {
-          ForEach(model.orderedProviders) { provider in
+        VStack(spacing: 0) {
+          ForEach(Array(model.orderedProviders.enumerated()), id: \.element) { index, provider in
+            if index > 0 {
+              Divider()
+                .padding(.leading, 46)
+            }
             providerRow(provider)
           }
+        }
+        .coordinateSpace(name: "providerCustomizationRows")
+        .onPreferenceChange(ProviderRowFramePreferenceKey.self) { frames in
+          providerRowFrames = frames
         }
         .padding(8)
       }
@@ -2928,56 +2939,190 @@ private struct ProviderCustomizationOverlay: View {
     }
   }
 
+  @ViewBuilder
   private func providerRow(_ provider: PortdeckDashboardSource) -> some View {
+    if provider == .local {
+      providerRowContent(provider)
+    } else {
+      providerRowContent(provider)
+        .simultaneousGesture(reorderGesture(for: provider))
+    }
+  }
+
+  private func providerRowContent(_ provider: PortdeckDashboardSource) -> some View {
     HStack(spacing: 10) {
+      reorderControl(for: provider)
+
+      HStack(spacing: 8) {
+        Image(systemName: provider.systemImage)
+          .foregroundStyle(provider.accentColor)
+          .frame(width: 18)
+        Text(provider.title)
+          .font(.callout)
+          .fontWeight(.medium)
+      }
+      .opacity(model.isVisible(provider) ? 1 : 0.48)
+
+      Spacer(minLength: 12)
+
       Toggle(
+        "Show \(provider.title)",
         isOn: Binding(
           get: { model.isVisible(provider) },
           set: { model.setVisible($0, for: provider) }
         )
-      ) {
-        HStack(spacing: 8) {
-          Image(systemName: provider.systemImage)
-            .foregroundStyle(provider.accentColor)
-            .frame(width: 18)
-          Text(provider.title)
-            .font(.callout)
-            .fontWeight(.medium)
-        }
-      }
+      )
+      .labelsHidden()
       .toggleStyle(.switch)
       .controlSize(.small)
       .disabled(model.isVisible(provider) && !model.canHide(provider))
       .accessibilityLabel("Show \(provider.title) provider")
       .help(visibilityHelp(for: provider))
-
-      Spacer(minLength: 8)
-
-      Button {
-        model.moveUp(provider)
-      } label: {
-        Image(systemName: "chevron.up")
-          .frame(width: 24, height: 24)
-      }
-      .buttonStyle(.borderless)
-      .disabled(provider == .local || !model.canMoveUp(provider))
-      .accessibilityLabel("Move \(provider.title) provider up")
-      .help("Move \(provider.title) earlier")
-
-      Button {
-        model.moveDown(provider)
-      } label: {
-        Image(systemName: "chevron.down")
-          .frame(width: 24, height: 24)
-      }
-      .buttonStyle(.borderless)
-      .disabled(provider == .local || !model.canMoveDown(provider))
-      .accessibilityLabel("Move \(provider.title) provider down")
-      .help("Move \(provider.title) later")
     }
-    .padding(.horizontal, 8)
+    .padding(.horizontal, 6)
     .padding(.vertical, 7)
-    .background(.quaternary.opacity(0.30), in: RoundedRectangle(cornerRadius: 8))
+    .background {
+      GeometryReader { proxy in
+        Color.clear.preference(
+          key: ProviderRowFramePreferenceKey.self,
+          value: [
+            provider: proxy.frame(in: .named("providerCustomizationRows"))
+          ]
+        )
+      }
+    }
+    .background {
+      RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .fill(
+          draggedProvider == provider
+            ? Color.accentColor.opacity(0.18)
+            : dropTarget == provider
+              ? Color.accentColor.opacity(0.10)
+              : .clear
+        )
+    }
+    .overlay {
+      RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .stroke(
+          draggedProvider == provider ? Color.accentColor.opacity(0.58) : .clear,
+          lineWidth: 1
+        )
+    }
+    .contentShape(Rectangle())
+    .scaleEffect(draggedProvider == provider ? 0.985 : 1)
+    .animation(.easeInOut(duration: 0.14), value: draggedProvider)
+    .animation(.easeInOut(duration: 0.14), value: dropTarget)
+    .contextMenu {
+      if provider != .local {
+        Button("Move Earlier") {
+          withAnimation(.easeInOut(duration: 0.16)) {
+            _ = model.moveUp(provider)
+          }
+        }
+        .disabled(!model.canMoveUp(provider))
+
+        Button("Move Later") {
+          withAnimation(.easeInOut(duration: 0.16)) {
+            _ = model.moveDown(provider)
+          }
+        }
+        .disabled(!model.canMoveDown(provider))
+      }
+    }
+  }
+
+  private func reorderGesture(
+    for provider: PortdeckDashboardSource
+  ) -> some Gesture {
+    DragGesture(
+      minimumDistance: 6,
+      coordinateSpace: .named("providerCustomizationRows")
+    )
+    .onChanged { value in
+      guard draggedProvider == nil || draggedProvider == provider else {
+        return
+      }
+
+      if draggedProvider == nil {
+        withAnimation(.easeInOut(duration: 0.12)) {
+          draggedProvider = provider
+        }
+      }
+
+      reorderDraggedProvider(provider, at: value.location.y)
+    }
+    .onEnded { _ in
+      withAnimation(.easeInOut(duration: 0.14)) {
+        draggedProvider = nil
+        dropTarget = nil
+      }
+    }
+  }
+
+  private func reorderDraggedProvider(
+    _ provider: PortdeckDashboardSource,
+    at pointerY: CGFloat
+  ) {
+    let availableTargets = model.orderedProviders.compactMap { candidate -> (
+      provider: PortdeckDashboardSource,
+      frame: CGRect
+    )? in
+      guard let frame = providerRowFrames[candidate] else {
+        return nil
+      }
+      return (candidate, frame)
+    }
+
+    guard
+      let target = availableTargets.min(by: {
+        abs($0.frame.midY - pointerY) < abs($1.frame.midY - pointerY)
+      })?.provider
+    else {
+      return
+    }
+
+    dropTarget = target
+    guard
+      provider != target,
+      let providerIndex = model.orderedProviders.firstIndex(of: provider),
+      let targetIndex = model.orderedProviders.firstIndex(of: target)
+    else {
+      return
+    }
+
+    withAnimation(.easeInOut(duration: 0.14)) {
+      _ = model.move(
+        provider,
+        relativeTo: target,
+        insertAfter: providerIndex < targetIndex
+      )
+    }
+  }
+
+  @ViewBuilder
+  private func reorderControl(for provider: PortdeckDashboardSource) -> some View {
+    if provider == .local {
+      Image(systemName: "pin.fill")
+        .font(.caption)
+        .foregroundStyle(.tertiary)
+        .frame(width: 28, height: 28)
+        .accessibilityLabel("Local stays first")
+        .help("Local stays first")
+    } else {
+      Image(systemName: "line.3.horizontal")
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .frame(width: 28, height: 28)
+        .contentShape(Rectangle())
+      .accessibilityLabel("Reorder \(provider.title)")
+      .accessibilityAction(named: "Move Earlier") {
+        _ = model.moveUp(provider)
+      }
+      .accessibilityAction(named: "Move Later") {
+        _ = model.moveDown(provider)
+      }
+      .help("Drag to reorder \(provider.title)")
+    }
   }
 
   private func visibilityHelp(for provider: PortdeckDashboardSource) -> String {
@@ -2987,6 +3132,17 @@ private struct ProviderCustomizationOverlay: View {
     return model.isVisible(provider)
       ? "Hide the \(provider.title) provider tab"
       : "Show the \(provider.title) provider tab"
+  }
+}
+
+private struct ProviderRowFramePreferenceKey: PreferenceKey {
+  static let defaultValue: [PortdeckDashboardSource: CGRect] = [:]
+
+  static func reduce(
+    value: inout [PortdeckDashboardSource: CGRect],
+    nextValue: () -> [PortdeckDashboardSource: CGRect]
+  ) {
+    value.merge(nextValue(), uniquingKeysWith: { _, newValue in newValue })
   }
 }
 
