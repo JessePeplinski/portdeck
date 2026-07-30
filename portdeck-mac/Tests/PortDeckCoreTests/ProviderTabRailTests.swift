@@ -3,6 +3,39 @@ import PortDeckCore
 import Testing
 @testable import PortDeckMac
 
+@Test
+func providerTabShortcutsFollowVisibleNavigationOrderAndStopAtNine() {
+  let providers: [PortdeckDashboardSource] = [
+    .github,
+    .vercel,
+    .local,
+    .convex,
+    .supabase,
+    .cloudflare,
+    .railway,
+    .fly,
+    .netlify,
+    .hostinger
+  ]
+  let orderedProviders = ProviderTabShortcut.orderedProviders(providers)
+
+  #expect(orderedProviders.first == .local)
+  #expect(ProviderTabShortcut.number(for: .local, in: orderedProviders) == 1)
+  #expect(ProviderTabShortcut.number(for: .github, in: orderedProviders) == 2)
+  #expect(ProviderTabShortcut.number(for: .netlify, in: orderedProviders) == 9)
+  #expect(ProviderTabShortcut.number(for: .hostinger, in: orderedProviders) == nil)
+}
+
+@Test
+func providerTabShortcutsPreserveOrderWhenLocalIsHidden() {
+  let providers: [PortdeckDashboardSource] = [.github, .vercel, .convex]
+  let orderedProviders = ProviderTabShortcut.orderedProviders(providers)
+
+  #expect(orderedProviders == providers)
+  #expect(ProviderTabShortcut.number(for: .github, in: orderedProviders) == 1)
+  #expect(ProviderTabShortcut.number(for: .convex, in: orderedProviders) == 3)
+}
+
 @Test @MainActor
 func providerTabRailDragScrollsContinuouslyAndRespectsBoundaries() {
   let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 100, height: 30))

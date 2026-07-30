@@ -55,6 +55,7 @@ struct StatusView: View {
   @State private var isCommandPalettePresented = false
   @State private var isProviderCustomizationPresented = false
   @State private var isAboutPresented = false
+  @State private var isCommandKeyPressed = false
   @State private var commandPaletteQuery = ""
   @State private var selectedCommandPaletteIndex = 0
   @FocusState private var isCommandPaletteSearchFocused: Bool
@@ -101,6 +102,10 @@ struct StatusView: View {
           }
         )
       }
+    }
+    .background {
+      CommandModifierMonitor(isPressed: $isCommandKeyPressed)
+        .frame(width: 0, height: 0)
     }
     .task(id: activeSource) {
       let selectedSource = activeSource
@@ -503,6 +508,7 @@ struct StatusView: View {
     ProviderTabRail(
       providers: providerConfiguration.visibleProviders,
       selectedProvider: selectedSource,
+      isCommandKeyPressed: isCommandKeyPressed,
       onSelect: selectSource
     )
   }
@@ -1078,6 +1084,7 @@ private struct FooterAttributionLink: View {
 private struct ProviderTabRail: View {
   let providers: [PortdeckDashboardSource]
   let selectedProvider: PortdeckDashboardSource
+  let isCommandKeyPressed: Bool
   let onSelect: (PortdeckDashboardSource) -> Void
 
   @State private var scrollPosition: PortdeckDashboardSource?
@@ -1102,8 +1109,7 @@ private struct ProviderTabRail: View {
   }
 
   private var navigationProviders: [PortdeckDashboardSource] {
-    guard providers.contains(.local) else { return providers }
-    return [.local] + providers.filter { $0 != .local }
+    ProviderTabShortcut.orderedProviders(providers)
   }
 
   private var overflowingProviderButtons: some View {
@@ -1161,12 +1167,37 @@ private struct ProviderTabRail: View {
   }
 
   private func providerButton(_ provider: PortdeckDashboardSource) -> some View {
-    Button {
+    let shortcutNumber = ProviderTabShortcut.number(
+      for: provider,
+      in: navigationProviders
+    )
+
+    return Button {
       onSelect(provider)
     } label: {
       HStack(spacing: 5) {
-        Image(systemName: provider.systemImage)
-          .imageScale(.small)
+        ZStack {
+          if isCommandKeyPressed, let shortcutNumber {
+            HStack(spacing: 1) {
+              Text("⌘")
+                .font(.caption2.weight(.semibold))
+              Text("\(shortcutNumber)")
+                .font(.caption2.monospacedDigit().weight(.bold))
+            }
+            .frame(width: 25, height: 16)
+            .background(.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: 4))
+            .transition(.scale(scale: 0.65).combined(with: .opacity))
+          } else {
+            Image(systemName: provider.systemImage)
+              .imageScale(.small)
+              .transition(.scale(scale: 0.65).combined(with: .opacity))
+          }
+        }
+        .frame(width: 25, height: 16)
+        .animation(
+          .spring(response: 0.20, dampingFraction: 0.68),
+          value: isCommandKeyPressed
+        )
         Text(provider.title)
           .font(.caption)
           .fontWeight(.semibold)
@@ -1183,8 +1214,16 @@ private struct ProviderTabRail: View {
       )
     }
     .buttonStyle(.plain)
+    .providerKeyboardShortcut(shortcutNumber)
     .accessibilityLabel(provider.title)
-    .help("\(provider.helpText)\nClick and drag to scroll providers")
+    .accessibilityHint(
+      shortcutNumber.map { "Press Command \($0) to switch to this provider." } ?? ""
+    )
+    .help(
+      shortcutNumber.map {
+        "\(provider.helpText)\n⌘\($0) to switch\nClick and drag to scroll providers"
+      } ?? "\(provider.helpText)\nClick and drag to scroll providers"
+    )
   }
 
   private func navigationButton(
@@ -1213,6 +1252,44 @@ private struct ProviderTabRail: View {
 
     withAnimation(.easeInOut(duration: 0.18)) {
       scrollPosition = provider
+    }
+  }
+}
+
+enum ProviderTabShortcut {
+  static let maximumShortcutCount = 9
+
+  static func orderedProviders(
+    _ providers: [PortdeckDashboardSource]
+  ) -> [PortdeckDashboardSource] {
+    guard providers.contains(.local) else { return providers }
+    return [.local] + providers.filter { $0 != .local }
+  }
+
+  static func number(
+    for provider: PortdeckDashboardSource,
+    in orderedProviders: [PortdeckDashboardSource]
+  ) -> Int? {
+    guard let index = orderedProviders.firstIndex(of: provider),
+      index < maximumShortcutCount
+    else {
+      return nil
+    }
+
+    return index + 1
+  }
+}
+
+private extension View {
+  @ViewBuilder
+  func providerKeyboardShortcut(_ number: Int?) -> some View {
+    if let number {
+      keyboardShortcut(
+        KeyEquivalent(Character(String(number))),
+        modifiers: .command
+      )
+    } else {
+      self
     }
   }
 }
@@ -2304,6 +2381,83 @@ private struct CommandPaletteEmptyState: View {
         .foregroundStyle(.secondary)
     }
     .padding(.vertical, 28)
+  }
+}
+
+private struct CommandModifierMonitor: NSViewRepresentable {
+  @Binding var isPressed: Bool
+
+  func makeNSView(context: Context) -> NSView {
+    context.coordinator.installMonitor()
+    return NSView(frame: .zero)
+  }
+
+  func updateNSView(_ nsView: NSView, context: Context) {
+    context.coordinator.onChange = updatePressedState
+    context.coordinator.installMonitor()
+  }
+
+  static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+    coordinator.removeMonitor()
+  }
+
+  func makeCoordinator() -> Coordinator {
+    Coordinator(onChange: updatePressedState)
+  }
+
+  private func updatePressedState(_ isPressed: Bool) {
+    guard self.isPressed != isPressed else { return }
+    self.isPressed = isPressed
+  }
+
+  final class Coordinator: NSObject {
+    var onChange: (Bool) -> Void
+    private var localMonitor: Any?
+    private var isObservingApplicationState = false
+
+    init(onChange: @escaping (Bool) -> Void) {
+      self.onChange = onChange
+      super.init()
+    }
+
+    func installMonitor() {
+      guard localMonitor == nil else { return }
+
+      localMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) {
+        [weak self] event in
+        self?.onChange(event.modifierFlags.contains(.command))
+        return event
+      }
+
+      NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(applicationDidResignActive(_:)),
+        name: NSApplication.didResignActiveNotification,
+        object: nil
+      )
+      isObservingApplicationState = true
+    }
+
+    func removeMonitor() {
+      if let localMonitor {
+        NSEvent.removeMonitor(localMonitor)
+      }
+      localMonitor = nil
+
+      if isObservingApplicationState {
+        NotificationCenter.default.removeObserver(
+          self,
+          name: NSApplication.didResignActiveNotification,
+          object: nil
+        )
+      }
+      isObservingApplicationState = false
+    }
+
+    @objc
+    private func applicationDidResignActive(_ notification: Notification) {
+      onChange(false)
+    }
   }
 }
 
