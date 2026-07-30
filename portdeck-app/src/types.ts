@@ -18,6 +18,7 @@ export type ProcessInfo = {
   processName: string;
   command?: string;
   cwd?: string;
+  uptimeSeconds?: number;
 };
 
 export type ServiceActivity = {
@@ -142,6 +143,7 @@ export type DiscoveredDockerPort = {
   composeConfigFiles?: string[];
   containerWorkingDir?: string;
   mounts?: DockerMount[];
+  startedAt?: string;
 };
 
 export type PortdeckService = {
@@ -166,6 +168,7 @@ export type PortdeckService = {
   containerId?: string;
   containerPort?: number;
   image?: string;
+  startedAt?: string;
   activity?: ServiceActivity;
   confidence: Confidence;
   subcontext?: PackageSubcontext;

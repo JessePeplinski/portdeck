@@ -101,6 +101,7 @@ public struct PortdeckService: Decodable, Identifiable, Sendable {
   public let containerId: String?
   public let containerPort: Int?
   public let image: String?
+  public let startedAt: String?
   public let activity: ServiceActivity?
   public let confidence: String
   public let subcontext: ServiceSubcontext?
@@ -128,6 +129,7 @@ public struct PortdeckService: Decodable, Identifiable, Sendable {
     case containerId
     case containerPort
     case image
+    case startedAt
     case activity
     case confidence
     case subcontext
@@ -156,6 +158,7 @@ public struct PortdeckService: Decodable, Identifiable, Sendable {
     containerId: String?,
     containerPort: Int?,
     image: String?,
+    startedAt: String? = nil,
     activity: ServiceActivity? = nil,
     confidence: String,
     subcontext: ServiceSubcontext? = nil,
@@ -182,6 +185,7 @@ public struct PortdeckService: Decodable, Identifiable, Sendable {
     self.containerId = containerId
     self.containerPort = containerPort
     self.image = image
+    self.startedAt = startedAt
     self.activity = activity
     self.confidence = confidence
     self.subcontext = subcontext

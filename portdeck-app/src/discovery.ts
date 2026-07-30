@@ -108,7 +108,12 @@ async function discoverProcesses(
     return new Map();
   }
 
-  const result = await safeExeca("ps", ["-o", "pid=,command=", "-p", pids.join(",")], warnings, "inspect processes");
+  const result = await safeExeca(
+    "ps",
+    ["-o", "pid=,etime=,command=", "-p", pids.join(",")],
+    warnings,
+    "inspect processes"
+  );
   const processes = result ? parsePsOutput(result.stdout) : new Map<number, ProcessInfo>();
 
   await Promise.all(

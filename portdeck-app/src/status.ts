@@ -104,6 +104,10 @@ export async function buildStatus(input: BuildStatusInput): Promise<PortdeckStat
         service.subcontext = subcontext;
       }
     }
+    const startedAt = startedAtFromUptime(input.generatedAt, process?.uptimeSeconds);
+    if (startedAt) {
+      service.startedAt = startedAt;
+    }
     const processActivity = input.processActivityByPid?.get(port.pid);
     if (hasActivity(processActivity)) {
       service.activity = processActivity;
@@ -165,6 +169,7 @@ export async function buildStatus(input: BuildStatusInput): Promise<PortdeckStat
       image: port.image,
       processName: port.image,
       command: `docker container ${port.containerName}`,
+      ...(port.startedAt ? { startedAt: port.startedAt } : {}),
       confidence: "medium"
     };
     const dockerActivity = input.dockerActivityByContainerId?.get(port.containerId);
@@ -232,6 +237,19 @@ export async function buildStatus(input: BuildStatusInput): Promise<PortdeckStat
     ...(portConflicts && portConflicts.length > 0 ? { portConflicts } : {}),
     ...(exposures && exposures.length > 0 ? { exposures } : {})
   };
+}
+
+function startedAtFromUptime(generatedAt: string, uptimeSeconds: number | undefined): string | undefined {
+  if (uptimeSeconds === undefined || !Number.isFinite(uptimeSeconds) || uptimeSeconds < 0) {
+    return undefined;
+  }
+
+  const generatedAtMilliseconds = Date.parse(generatedAt);
+  if (!Number.isFinite(generatedAtMilliseconds)) {
+    return undefined;
+  }
+
+  return new Date(generatedAtMilliseconds - uptimeSeconds * 1_000).toISOString();
 }
 
 function hasActivity(activity: PortdeckService["activity"] | undefined): activity is NonNullable<PortdeckService["activity"]> {

@@ -1673,6 +1673,7 @@ private struct ProjectSection: View {
           ProjectHeaderLabel(
             projectName: project.group.projectName,
             branchMetadata: headerBranchMetadata,
+            sessionStartedAt: headerSessionStartedAt,
             problemLabel: projectSummary.problemLabel
           )
           .frame(maxWidth: .infinity, alignment: .leading)
@@ -1769,6 +1770,14 @@ private struct ProjectSection: View {
     LocalStatusPresentation.projectSummary(project.group)
   }
 
+  private var headerSessionStartedAt: Date? {
+    guard project.group.worktrees.count == 1, let worktree = project.worktrees.first else {
+      return nil
+    }
+
+    return LocalStatusPresentation.sessionStartedAt(for: worktree.worktree)
+  }
+
   private var stopAllTarget: ProjectStopAllTarget? {
     project.group.stopAllTarget
   }
@@ -1785,6 +1794,7 @@ private struct ProjectSection: View {
 struct ProjectHeaderLabel: View {
   let projectName: String
   let branchMetadata: LocalMetadataItem?
+  var sessionStartedAt: Date? = nil
   let problemLabel: String?
 
   var body: some View {
@@ -1799,6 +1809,10 @@ struct ProjectHeaderLabel: View {
           )
           .fixedSize(horizontal: true, vertical: false)
         }
+        if let sessionStartedAt {
+          SessionDurationChip(startedAt: sessionStartedAt)
+            .fixedSize(horizontal: true, vertical: false)
+        }
         problemBadge
         Spacer(minLength: 0)
       }
@@ -1810,13 +1824,21 @@ struct ProjectHeaderLabel: View {
           Spacer(minLength: 0)
         }
 
-        if let branchMetadata {
-          MetadataChip(
-            text: branchMetadata.text,
-            systemImage: branchMetadata.systemImage,
-            lineLimit: 2
-          )
-          .fixedSize(horizontal: false, vertical: true)
+        if branchMetadata != nil || sessionStartedAt != nil {
+          HStack(spacing: 6) {
+            if let branchMetadata {
+              MetadataChip(
+                text: branchMetadata.text,
+                systemImage: branchMetadata.systemImage,
+                lineLimit: 2
+              )
+              .fixedSize(horizontal: false, vertical: true)
+            }
+            if let sessionStartedAt {
+              SessionDurationChip(startedAt: sessionStartedAt)
+                .fixedSize(horizontal: true, vertical: false)
+            }
+          }
         }
       }
     }
@@ -1946,10 +1968,13 @@ private struct WorktreeBlock: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      if !metadataItems.isEmpty || shouldShowWorktreeActions {
+      if !metadataItems.isEmpty || sessionStartedAt != nil || shouldShowWorktreeActions {
         HStack(spacing: 6) {
           ForEach(metadataItems, id: \.text) { item in
             MetadataChip(text: item.text, systemImage: item.systemImage)
+          }
+          if let sessionStartedAt {
+            SessionDurationChip(startedAt: sessionStartedAt)
           }
           Spacer()
           if shouldShowWorktreeActions {
@@ -1998,6 +2023,14 @@ private struct WorktreeBlock: View {
     worktree.worktree.hasJumpActions && !isSinglePrimaryWorktree
   }
 
+  private var sessionStartedAt: Date? {
+    guard projectWorktreeCount > 1 else {
+      return nil
+    }
+
+    return LocalStatusPresentation.sessionStartedAt(for: worktree.worktree)
+  }
+
   private var isSinglePrimaryWorktree: Bool {
     guard projectWorktreeCount == 1,
       let repoRoot,
@@ -2007,6 +2040,22 @@ private struct WorktreeBlock: View {
     }
 
     return sameFilePath(repoRoot, worktreePath)
+  }
+}
+
+private struct SessionDurationChip: View {
+  let startedAt: Date
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 60)) { context in
+      let duration = LocalStatusPresentation.sessionDurationLabel(
+        startedAt: startedAt,
+        relativeTo: context.date
+      )
+      MetadataChip(text: duration, systemImage: "clock")
+        .help("Local session open for \(duration)")
+        .accessibilityLabel("Local session open for \(duration)")
+    }
   }
 }
 

@@ -20,7 +20,16 @@ describe("buildStatus", () => {
       { pid: 1234, processName: "node", port: 3000, protocol: "TCP", address: "127.0.0.1" }
     ];
     const processes = new Map<number, ProcessInfo>([
-      [1234, { pid: 1234, processName: "node", command: "npm run dev", cwd: "/repo/acme-web" }]
+      [
+        1234,
+        {
+          pid: 1234,
+          processName: "node",
+          command: "npm run dev",
+          cwd: "/repo/acme-web",
+          uptimeSeconds: 3_661
+        }
+      ]
     ]);
     const gitByCwd = new Map<string, GitInfo>([
       [
@@ -77,6 +86,7 @@ describe("buildStatus", () => {
                 processName: "node",
                 command: "npm run dev",
                 cwd: "/repo/acme-web",
+                startedAt: "2026-06-04T22:58:59.000Z",
                 confidence: "high"
               }
             ]
