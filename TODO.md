@@ -6,6 +6,15 @@
 - [x] Read-only Railway provider: account-wide project/workspace and production service/deployment status through pinned Railway CLI with explicit scopes and no context mutation.
 - [x] Read-only Fly.io provider: account-wide organization, app, Machine, check, and release status through pinned flyctl with explicit app scopes and no resource mutation.
 
+## Release tooling
+
+- [ ] Add a one-command previous-beta-to-current-beta Sparkle installation verifier, targeted for the beta.16 release workflow.
+  - Proposed command: `npm run verify:mac:sparkle-update -- --from <previous-version>`.
+  - Use Sparkle's real `SPUUpdater` engine with an automated test-only `SPUUserDriver`.
+  - Download the previous public release into an isolated temporary app and preferences environment; never modify `/Applications`, Homebrew, or normal PortDeck preferences.
+  - Verify update discovery, the signed DMG download, installation, resulting version/build, Developer ID signature, notarization, Gatekeeper acceptance, and post-update launch.
+  - Clean up on success or failure, and run only after the new GitHub release assets and production appcast are live.
+
 ## MVP provider sequence
 
 Implement these in order. The boundaries and reasoning live in [Provider MVP roadmap](docs/provider-roadmap.md).
