@@ -1163,27 +1163,11 @@ private struct ProjectSection: View {
         Button {
           onToggle()
         } label: {
-          HStack(spacing: 8) {
-            Text(project.group.projectName)
-              .font(.headline)
-              .lineLimit(1)
-              .layoutPriority(1)
-            if let headerBranchMetadata {
-              MetadataChip(
-                text: headerBranchMetadata.text,
-                systemImage: headerBranchMetadata.systemImage
-              )
-            }
-            if let problemLabel = projectSummary.problemLabel {
-              Text(problemLabel)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.orange)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(.orange.opacity(0.11), in: Capsule())
-            }
-            Spacer(minLength: 0)
-          }
+          ProjectHeaderLabel(
+            projectName: project.group.projectName,
+            branchMetadata: headerBranchMetadata,
+            problemLabel: projectSummary.problemLabel
+          )
           .frame(maxWidth: .infinity, alignment: .leading)
           .contentShape(Rectangle())
         }
@@ -1281,6 +1265,66 @@ private struct ProjectSection: View {
 
   private var stoppingProjectTarget: ProjectStopAllTarget? {
     isProjectStopping ? stopAllTarget : nil
+  }
+}
+
+struct ProjectHeaderLabel: View {
+  let projectName: String
+  let branchMetadata: LocalMetadataItem?
+  let problemLabel: String?
+
+  var body: some View {
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 8) {
+        projectNameLabel
+          .fixedSize(horizontal: true, vertical: false)
+        if let branchMetadata {
+          MetadataChip(
+            text: branchMetadata.text,
+            systemImage: branchMetadata.systemImage
+          )
+          .fixedSize(horizontal: true, vertical: false)
+        }
+        problemBadge
+        Spacer(minLength: 0)
+      }
+
+      VStack(alignment: .leading, spacing: 6) {
+        HStack(spacing: 8) {
+          projectNameLabel
+          problemBadge
+          Spacer(minLength: 0)
+        }
+
+        if let branchMetadata {
+          MetadataChip(
+            text: branchMetadata.text,
+            systemImage: branchMetadata.systemImage,
+            lineLimit: 2
+          )
+          .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+    }
+  }
+
+  private var projectNameLabel: some View {
+    Text(projectName)
+      .font(.headline)
+      .lineLimit(1)
+      .layoutPriority(1)
+  }
+
+  @ViewBuilder
+  private var problemBadge: some View {
+    if let problemLabel {
+      Text(problemLabel)
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(.orange)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(.orange.opacity(0.11), in: Capsule())
+    }
   }
 }
 
@@ -2437,12 +2481,13 @@ private struct CountBadge: View {
 private struct MetadataChip: View {
   let text: String
   let systemImage: String
+  var lineLimit = 1
 
   var body: some View {
     Label(text, systemImage: systemImage)
       .font(.caption2)
       .foregroundStyle(.secondary)
-      .lineLimit(1)
+      .lineLimit(lineLimit)
       .truncationMode(.middle)
       .padding(.horizontal, 6)
       .padding(.vertical, 3)
