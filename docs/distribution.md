@@ -4,14 +4,14 @@ PortDeck's public beta is a Developer ID-signed and notarized arm64 app distribu
 
 ## Current release and next target
 
-The current public beta is `v0.1.0-beta.14` for Apple Silicon Macs running macOS 14 or newer:
+The current public beta is `v0.1.0-beta.15` for Apple Silicon Macs running macOS 14 or newer:
 
-- [`PortDeck-0.1.0-beta.14-macos-arm64.dmg`](../../../releases/download/v0.1.0-beta.14/PortDeck-0.1.0-beta.14-macos-arm64.dmg)
-- [`PortDeck-0.1.0-beta.14-macos-arm64.dmg.sha256`](../../../releases/download/v0.1.0-beta.14/PortDeck-0.1.0-beta.14-macos-arm64.dmg.sha256)
-- [`PortDeck-0.1.0-beta.14-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.14/PortDeck-0.1.0-beta.14-macos-arm64.zip)
-- [`PortDeck-0.1.0-beta.14-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.14/PortDeck-0.1.0-beta.14-macos-arm64.zip.sha256)
+- [`PortDeck-0.1.0-beta.15-macos-arm64.dmg`](../../../releases/download/v0.1.0-beta.15/PortDeck-0.1.0-beta.15-macos-arm64.dmg)
+- [`PortDeck-0.1.0-beta.15-macos-arm64.dmg.sha256`](../../../releases/download/v0.1.0-beta.15/PortDeck-0.1.0-beta.15-macos-arm64.dmg.sha256)
+- [`PortDeck-0.1.0-beta.15-macos-arm64.zip`](../../../releases/download/v0.1.0-beta.15/PortDeck-0.1.0-beta.15-macos-arm64.zip)
+- [`PortDeck-0.1.0-beta.15-macos-arm64.zip.sha256`](../../../releases/download/v0.1.0-beta.15/PortDeck-0.1.0-beta.15-macos-arm64.zip.sha256)
 
-The next release target is `v0.1.0-beta.15`.
+The next release target is `v0.1.0-beta.16`.
 
 A universal/x86_64 build, delta updates, and App Store package are outside the current beta contract.
 
