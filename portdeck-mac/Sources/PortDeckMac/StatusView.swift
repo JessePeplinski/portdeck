@@ -54,6 +54,7 @@ struct StatusView: View {
   @State private var pendingStopAction: PendingStopAction?
   @State private var isCommandPalettePresented = false
   @State private var isProviderCustomizationPresented = false
+  @State private var isAboutPresented = false
   @State private var commandPaletteQuery = ""
   @State private var selectedCommandPaletteIndex = 0
   @FocusState private var isCommandPaletteSearchFocused: Bool
@@ -76,6 +77,13 @@ struct StatusView: View {
         ProviderCustomizationOverlay(
           model: providerConfiguration,
           onDismiss: dismissProviderCustomization
+        )
+      }
+
+      if isAboutPresented {
+        AboutPortDeckOverlay(
+          version: updateController.currentVersion,
+          onDismiss: dismissAbout
         )
       }
 
@@ -407,77 +415,56 @@ struct StatusView: View {
   }
 
   private var footer: some View {
-    VStack(spacing: 8) {
-      HStack(spacing: 8) {
-#if !APP_STORE
-        Button {
-          openDonationPage()
-        } label: {
-          Label("Donate", systemImage: "heart.fill")
+    VStack(spacing: 0) {
+      if updateController.isUpdateAvailable {
+        FooterMenuAction(
+          title: "Update ready, restart now?",
+          systemImage: "arrow.down.circle"
+        ) {
+          updateController.checkForUpdates()
         }
-        .help("Open Buy Me a Coffee")
+        .help(updateButtonHelp)
+      }
+
+#if !APP_STORE
+      FooterMenuAction(
+        title: "Donate",
+        systemImage: "heart.fill"
+      ) {
+        openDonationPage()
+      }
+      .help("Open Buy Me a Coffee")
 #endif
 
-        Spacer()
+      FooterMenuAction(
+        title: "Settings…",
+        systemImage: "gearshape",
+        shortcut: "⌘ ,"
+      ) {
+        SettingsWindowPresenter.present(openSettings: {
+          openSettings()
+        })
+      }
+      .keyboardShortcut(",", modifiers: .command)
 
-        if updateController.isUpdateAvailable {
-          Button {
-            updateController.checkForUpdates()
-          } label: {
-            Label("New version available", systemImage: "arrow.down.circle.fill")
-          }
-          .help(updateButtonHelp)
-        }
-
-        Button {
-          SettingsWindowPresenter.present(openSettings: {
-            openSettings()
-          })
-        } label: {
-          Label("Settings", systemImage: "gearshape")
-        }
-        .keyboardShortcut(",", modifiers: .command)
-
-        Button("Quit") {
-          NSApplication.shared.terminate(nil)
-        }
-        .keyboardShortcut("q", modifiers: .command)
+      FooterMenuAction(
+        title: "About PortDeck",
+        systemImage: "info.circle"
+      ) {
+        presentAbout()
       }
 
-      Divider()
-
-      HStack(spacing: 3) {
-        Text("Version \(updateController.currentVersion)")
-
-        Spacer()
-
-        Text("Built by")
-
-        Link(FooterAttribution.jesseName, destination: FooterAttribution.jesseURL)
-        Text("/")
-        Link(FooterAttribution.studioName, destination: FooterAttribution.studioURL)
-
-        FooterAttributionLink(
-          title: "Jesse Peplinski’s website",
-          systemImage: "globe",
-          destination: FooterAttribution.jesseURL
-        )
-        FooterAttributionLink(
-          title: "Jesse Peplinski on X",
-          iconSVG: FooterAttribution.xIconSVG,
-          destination: FooterAttribution.xURL
-        )
-        FooterAttributionLink(
-          title: "Pep Tech on Twitch",
-          iconSVG: FooterAttribution.twitchIconSVG,
-          destination: FooterAttribution.twitchURL
-        )
+      FooterMenuAction(
+        title: "Quit",
+        systemImage: "xmark.rectangle",
+        shortcut: "⌘ Q"
+      ) {
+        NSApplication.shared.terminate(nil)
       }
-      .font(.caption2)
-      .foregroundStyle(.secondary)
-      .tint(.secondary)
+      .keyboardShortcut("q", modifiers: .command)
     }
-    .padding(12)
+    .padding(.horizontal, 8)
+    .padding(.vertical, 4)
   }
 
   private var updateButtonHelp: String {
@@ -731,7 +718,14 @@ struct StatusView: View {
 
   private func presentProviderCustomization() {
     dismissCommandPalette()
+    isAboutPresented = false
     isProviderCustomizationPresented = true
+  }
+
+  private func presentAbout() {
+    dismissCommandPalette()
+    isProviderCustomizationPresented = false
+    isAboutPresented = true
   }
 
   private func selectSource(_ source: PortdeckDashboardSource) {
@@ -755,6 +749,10 @@ struct StatusView: View {
 
   private func dismissProviderCustomization() {
     isProviderCustomizationPresented = false
+  }
+
+  private func dismissAbout() {
+    isAboutPresented = false
   }
 
   private func moveCommandPaletteSelection(_ delta: Int) {
@@ -903,6 +901,143 @@ struct StatusView: View {
       worktree.remoteUrl,
       worktree.repositoryUrl
     ].compactMap { $0 }
+  }
+}
+
+private struct FooterMenuAction: View {
+  let title: String
+  let systemImage: String
+  var shortcut: String?
+  let action: () -> Void
+
+  @State private var isHovering = false
+
+  var body: some View {
+    Button(action: action) {
+      HStack(spacing: 10) {
+        Image(systemName: systemImage)
+          .font(.callout)
+          .frame(width: 18)
+
+        Text(title)
+          .font(.callout)
+          .fontWeight(.medium)
+
+        Spacer()
+
+        if let shortcut {
+          Text(shortcut)
+            .font(.callout.monospaced())
+            .foregroundStyle(.tertiary)
+        }
+      }
+      .foregroundStyle(.primary)
+      .padding(.horizontal, 8)
+      .frame(height: 24)
+      .contentShape(Rectangle())
+      .background(
+        isHovering ? Color.primary.opacity(0.08) : Color.clear,
+        in: RoundedRectangle(cornerRadius: 7)
+      )
+    }
+    .buttonStyle(.plain)
+    .onHover { isHovering = $0 }
+  }
+}
+
+private struct AboutPortDeckOverlay: View {
+  let version: String
+  let onDismiss: () -> Void
+
+  var body: some View {
+    ZStack {
+      Color.black.opacity(0.24)
+        .ignoresSafeArea()
+        .onTapGesture(perform: onDismiss)
+
+      VStack(spacing: 0) {
+        HStack {
+          Text("About PortDeck")
+            .font(.headline)
+            .fontWeight(.semibold)
+
+          Spacer()
+
+          Button(action: onDismiss) {
+            Image(systemName: "xmark.circle.fill")
+              .font(.title3)
+              .foregroundStyle(.secondary)
+          }
+          .buttonStyle(.plain)
+          .keyboardShortcut(.cancelAction)
+          .accessibilityLabel("Close About PortDeck")
+          .help("Close About PortDeck")
+        }
+        .padding(14)
+
+        Divider()
+
+        VStack(spacing: 12) {
+          PortDeckMarkShape()
+            .fill(.white, style: FillStyle(eoFill: true))
+            .frame(width: 56, height: 24)
+            .accessibilityHidden(true)
+
+          VStack(spacing: 3) {
+            Text("PortDeck")
+              .font(.title3)
+              .fontWeight(.semibold)
+            Text("Version \(version)")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+
+          VStack(spacing: 4) {
+            Text("Built by")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+
+            HStack(spacing: 4) {
+              Link(FooterAttribution.jesseName, destination: FooterAttribution.jesseURL)
+              Text("/")
+                .foregroundStyle(.secondary)
+              Link(FooterAttribution.studioName, destination: FooterAttribution.studioURL)
+            }
+            .font(.callout)
+          }
+
+          HStack(spacing: 12) {
+            FooterAttributionLink(
+              title: "Jesse Peplinski’s website",
+              systemImage: "globe",
+              destination: FooterAttribution.jesseURL
+            )
+            FooterAttributionLink(
+              title: "Jesse Peplinski on X",
+              iconSVG: FooterAttribution.xIconSVG,
+              destination: FooterAttribution.xURL
+            )
+            FooterAttributionLink(
+              title: "Pep Tech on Twitch",
+              iconSVG: FooterAttribution.twitchIconSVG,
+              destination: FooterAttribution.twitchURL
+            )
+          }
+          .foregroundStyle(.secondary)
+          .tint(.secondary)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+      }
+      .frame(width: 330)
+      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+          .stroke(.white.opacity(0.16), lineWidth: 1)
+      }
+      .shadow(color: .black.opacity(0.30), radius: 24, y: 12)
+      .padding()
+    }
   }
 }
 
