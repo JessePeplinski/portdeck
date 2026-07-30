@@ -1,6 +1,25 @@
 import AppKit
 import SwiftUI
 
+enum MenuWindowSizing {
+  static let width: CGFloat = 500
+  static let preferredHeight: CGFloat = 700
+  static let fallbackHeight: CGFloat = 560
+  static let displayMargin: CGFloat = 24
+
+  static func height(for screen: NSScreen?) -> CGFloat {
+    height(availableHeight: screen?.visibleFrame.height)
+  }
+
+  static func height(availableHeight: CGFloat?) -> CGFloat {
+    guard let availableHeight else {
+      return fallbackHeight
+    }
+
+    return min(preferredHeight, max(1, availableHeight - displayMargin))
+  }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSApp.setActivationPolicy(.accessory)
@@ -40,7 +59,10 @@ struct PortDeckMacApp: App {
         providerConfiguration: providerConfiguration,
         updateController: updateController
       )
-        .frame(width: 500, height: menuWindowHeight)
+        .frame(
+          width: MenuWindowSizing.width,
+          height: MenuWindowSizing.height(for: NSScreen.main)
+        )
     } label: {
       Label {
         Text("PortDeck")
@@ -57,9 +79,5 @@ struct PortDeckMacApp: App {
         updateController: updateController
       )
     }
-  }
-
-  private var menuWindowHeight: CGFloat {
-    NSScreen.main?.visibleFrame.height ?? 560
   }
 }
