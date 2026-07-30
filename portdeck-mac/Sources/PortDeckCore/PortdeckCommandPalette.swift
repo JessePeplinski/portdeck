@@ -18,6 +18,7 @@ public enum PortdeckCommandPaletteActionKind: Equatable, Sendable {
   case copyJSON
   case switchSource(PortdeckDashboardSource)
   case toggleSystemListeners
+  case showKeyboardShortcuts
 }
 
 public struct PortdeckCommandPaletteAction: Identifiable, Sendable {
@@ -104,6 +105,16 @@ public enum PortdeckCommandPalette {
         role: .utility,
         aliases: ["system listeners", "show system", "hide system", "diagnostics"],
         searchTokens: ["unknown", "macos", "background", "listeners", "diagnostics"]
+      ),
+      PortdeckCommandPaletteAction(
+        id: "show-keyboard-shortcuts",
+        kind: .showKeyboardShortcuts,
+        title: "Show keyboard shortcuts",
+        subtitle: "Open the PortDeck keyboard reference",
+        systemImage: "keyboard",
+        role: .utility,
+        aliases: ["help", "keys", "keybinds", "shortcuts", "keyboard help"],
+        searchTokens: ["navigation", "command", "filter", "arrow keys"]
       )
     ]
 

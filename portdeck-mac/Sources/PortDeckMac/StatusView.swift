@@ -53,12 +53,16 @@ struct StatusView: View {
   ]
   @State private var pendingStopAction: PendingStopAction?
   @State private var isCommandPalettePresented = false
+  @State private var isKeyboardShortcutsPresented = false
   @State private var isProviderCustomizationPresented = false
   @State private var isAboutPresented = false
   @State private var isCommandKeyPressed = false
   @State private var commandPaletteQuery = ""
   @State private var selectedCommandPaletteIndex = 0
+  @State private var selectedLocalKeyboardItemID: String?
+  @State private var isLocalKeyboardNavigationActive = false
   @FocusState private var isCommandPaletteSearchFocused: Bool
+  @FocusState private var isProviderSearchFocused: Bool
 
   var body: some View {
     ZStack {
@@ -72,6 +76,10 @@ struct StatusView: View {
 
       if isCommandPalettePresented {
         commandPaletteOverlay
+      }
+
+      if isKeyboardShortcutsPresented {
+        KeyboardShortcutsOverlay(onDismiss: dismissKeyboardShortcuts)
       }
 
       if isProviderCustomizationPresented {
@@ -104,8 +112,23 @@ struct StatusView: View {
       }
     }
     .background {
-      CommandModifierMonitor(isPressed: $isCommandKeyPressed)
+      ZStack {
+        CommandModifierMonitor(isPressed: $isCommandKeyPressed)
+          .frame(width: 0, height: 0)
+        StatusKeyboardMonitor(
+          isActive: !isKeyboardInteractionBlocked,
+          supportsLocalNavigation: activeSource == .local,
+          isTextInputFocused: isProviderSearchFocused,
+          onFocusFilter: focusProviderFilter,
+          onMoveSelection: moveLocalKeyboardSelection,
+          onMoveIntoGroup: setSelectedLocalGroupExpanded,
+          onRunSelection: runSelectedLocalKeyboardItem,
+          onClearSelection: clearLocalKeyboardSelection,
+          onCycleProvider: cycleProvider,
+          onShowHelp: presentKeyboardShortcuts
+        )
         .frame(width: 0, height: 0)
+      }
     }
     .task(id: activeSource) {
       let selectedSource = activeSource
@@ -142,6 +165,8 @@ struct StatusView: View {
       }
     }
     .onChange(of: activeSource) { oldProvider, newProvider in
+      isProviderSearchFocused = false
+      isLocalKeyboardNavigationActive = false
       if oldProvider == .fly, newProvider != .fly {
         flyModel.cancelRefresh()
       }
@@ -151,6 +176,9 @@ struct StatusView: View {
       if oldProvider == .hostinger, newProvider != .hostinger {
         hostingerModel.cancelRefresh()
       }
+    }
+    .onChange(of: localKeyboardItemIDs) {
+      normalizeLocalKeyboardSelection()
     }
     .onAppear(perform: restoreDashboardSelection)
     .onChange(of: providerConfiguration.selectedProvider) { _, provider in
@@ -215,15 +243,23 @@ struct StatusView: View {
   }
 
   private var content: some View {
-    ScrollView {
-      LazyVStack(alignment: .leading, spacing: 10) {
-        sourceTabs
-        selectedSourceContent
-          .id(selectedDashboardTab)
+    ScrollViewReader { proxy in
+      ScrollView {
+        LazyVStack(alignment: .leading, spacing: 10) {
+          sourceTabs
+          selectedSourceContent
+            .id(selectedDashboardTab)
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
       }
-      .padding(.horizontal, 10)
-      .padding(.top, 10)
-      .padding(.bottom, 12)
+      .onChange(of: selectedLocalKeyboardItemID) { _, selection in
+        guard let selection else { return }
+        withAnimation(.easeInOut(duration: 0.14)) {
+          proxy.scrollTo(selection, anchor: .center)
+        }
+      }
     }
   }
 
@@ -361,6 +397,7 @@ struct StatusView: View {
         ProjectSection(
           project: project,
           preferNamedURLs: false,
+          selectedKeyboardItemID: selectedLocalKeyboardItemID,
           isExpanded: localSectionIsExpanded(
             searchText: localSearchText,
             isCollapsed: collapsedProjectIDs.contains(project.id)
@@ -373,12 +410,14 @@ struct StatusView: View {
         ) {
           toggleProject(project.id)
         }
+        .id(LocalKeyboardNavigationID.project(project.id))
       }
 
       ForEach(visibleUnknownSections(for: status)) { section in
         UnknownSection(
           section: section,
           preferNamedURLs: false,
+          selectedKeyboardItemID: selectedLocalKeyboardItemID,
           isExpanded: isUnknownSectionExpanded(section.category),
           isStopping: model.isStopping,
           stoppingServiceID: model.stoppingServiceID,
@@ -386,10 +425,16 @@ struct StatusView: View {
         ) {
           toggleUnknownSection(section.category)
         }
+        .id(LocalKeyboardNavigationID.unknownSection(section.category.id))
       }
 
       if isEmptyResult(for: status) {
         EmptyStateView(searchText: localSearchText)
+      }
+
+      if isLocalKeyboardNavigationActive {
+        LocalKeyboardShortcutStrip()
+          .transition(.move(edge: .bottom).combined(with: .opacity))
       }
     } else if let error = model.errorMessage {
       VStack(alignment: .leading, spacing: 10) {
@@ -440,6 +485,14 @@ struct StatusView: View {
       }
       .help("Open Buy Me a Coffee")
 #endif
+
+      FooterMenuAction(
+        title: "Keyboard Shortcuts…",
+        systemImage: "keyboard",
+        shortcut: "?"
+      ) {
+        presentKeyboardShortcuts()
+      }
 
       FooterMenuAction(
         title: "Settings…",
@@ -519,6 +572,10 @@ struct StatusView: View {
         .foregroundStyle(.secondary)
       TextField(placeholder, text: text)
         .textFieldStyle(.plain)
+        .focused($isProviderSearchFocused)
+        .onExitCommand {
+          isProviderSearchFocused = false
+        }
       if !text.wrappedValue.isEmpty {
         Button {
           text.wrappedValue = ""
@@ -633,12 +690,27 @@ struct StatusView: View {
       )
     }
 
-    return PortdeckCommandPalette.collect(
+    let actions = PortdeckCommandPalette.collect(
       status: status,
       preferNamedURLs: false,
       showLikelySystemListeners: model.showLikelySystemListeners,
       dashboardSources: providerConfiguration.visibleProviders
     )
+
+    guard let selectedServiceID = selectedLocalKeyboardService?.id else {
+      return actions
+    }
+
+    return actions.enumerated()
+      .sorted { left, right in
+        let leftIsSelected = left.element.service?.id == selectedServiceID
+        let rightIsSelected = right.element.service?.id == selectedServiceID
+        if leftIsSelected != rightIsSelected {
+          return leftIsSelected
+        }
+        return left.offset < right.offset
+      }
+      .map(\.element)
   }
 
   private var commandPaletteResults: [PortdeckCommandPaletteAction] {
@@ -647,6 +719,80 @@ struct StatusView: View {
 
   private var normalizedSearchText: String {
     localSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  }
+
+  private var localKeyboardItems: [LocalKeyboardNavigationItem] {
+    guard activeSource == .local, let status = model.status else {
+      return []
+    }
+
+    var items: [LocalKeyboardNavigationItem] = []
+
+    for project in visibleProjects(for: status) {
+      items.append(LocalKeyboardNavigationItem(
+        id: LocalKeyboardNavigationID.project(project.id),
+        kind: .project(id: project.id)
+      ))
+
+      let isExpanded = localSectionIsExpanded(
+        searchText: localSearchText,
+        isCollapsed: collapsedProjectIDs.contains(project.id)
+      )
+      if isExpanded {
+        for service in project.worktrees.flatMap(\.services) {
+          items.append(LocalKeyboardNavigationItem(
+            id: LocalKeyboardNavigationID.service(service.id),
+            kind: .service(id: service.id)
+          ))
+        }
+      }
+    }
+
+    for section in visibleUnknownSections(for: status) {
+      items.append(LocalKeyboardNavigationItem(
+        id: LocalKeyboardNavigationID.unknownSection(section.category.id),
+        kind: .unknownSection(id: section.category.id)
+      ))
+
+      if isUnknownSectionExpanded(section.category) {
+        for service in section.services {
+          items.append(LocalKeyboardNavigationItem(
+            id: LocalKeyboardNavigationID.service(service.id),
+            kind: .service(id: service.id)
+          ))
+        }
+      }
+    }
+
+    return items
+  }
+
+  private var localKeyboardItemIDs: [String] {
+    localKeyboardItems.map(\.id)
+  }
+
+  private var selectedLocalKeyboardItem: LocalKeyboardNavigationItem? {
+    guard let selectedLocalKeyboardItemID else { return nil }
+    return localKeyboardItems.first { $0.id == selectedLocalKeyboardItemID }
+  }
+
+  private var selectedLocalKeyboardService: PortdeckService? {
+    guard case .service(let serviceID) = selectedLocalKeyboardItem?.kind,
+      let status = model.status
+    else {
+      return nil
+    }
+
+    let groupedServices = status.groups.flatMap(\.worktrees).flatMap(\.services)
+    return (groupedServices + status.unknown).first { $0.id == serviceID }
+  }
+
+  private var isKeyboardInteractionBlocked: Bool {
+    isCommandPalettePresented
+      || isKeyboardShortcutsPresented
+      || isProviderCustomizationPresented
+      || isAboutPresented
+      || pendingStopAction != nil
   }
 
   private func visibleProblems(for status: PortdeckStatus) -> [LocalProblem] {
@@ -709,7 +855,9 @@ struct StatusView: View {
   }
 
   private func presentCommandPalette() {
+    dismissKeyboardShortcuts()
     isProviderCustomizationPresented = false
+    isAboutPresented = false
     commandPaletteQuery = ""
     selectedCommandPaletteIndex = 0
     isCommandPalettePresented = true
@@ -722,14 +870,27 @@ struct StatusView: View {
     isCommandPaletteSearchFocused = false
   }
 
+  private func presentKeyboardShortcuts() {
+    dismissCommandPalette()
+    isProviderCustomizationPresented = false
+    isAboutPresented = false
+    isKeyboardShortcutsPresented = true
+  }
+
+  private func dismissKeyboardShortcuts() {
+    isKeyboardShortcutsPresented = false
+  }
+
   private func presentProviderCustomization() {
     dismissCommandPalette()
+    dismissKeyboardShortcuts()
     isAboutPresented = false
     isProviderCustomizationPresented = true
   }
 
   private func presentAbout() {
     dismissCommandPalette()
+    dismissKeyboardShortcuts()
     isProviderCustomizationPresented = false
     isAboutPresented = true
   }
@@ -759,6 +920,136 @@ struct StatusView: View {
 
   private func dismissAbout() {
     isAboutPresented = false
+  }
+
+  private func focusProviderFilter() {
+    isLocalKeyboardNavigationActive = false
+    isProviderSearchFocused = true
+  }
+
+  private func moveLocalKeyboardSelection(_ delta: Int) {
+    let nextSelection = LocalKeyboardNavigation.movedSelection(
+      from: selectedLocalKeyboardItemID,
+      by: delta,
+      in: localKeyboardItemIDs
+    )
+    guard nextSelection != nil else { return }
+
+    isProviderSearchFocused = false
+    selectedLocalKeyboardItemID = nextSelection
+    withAnimation(.easeOut(duration: 0.14)) {
+      isLocalKeyboardNavigationActive = true
+    }
+  }
+
+  private func setSelectedLocalGroupExpanded(_ shouldExpand: Bool) {
+    guard normalizedSearchText.isEmpty, let item = selectedLocalKeyboardItem else {
+      return
+    }
+
+    switch item.kind {
+    case .project(let projectID):
+      setProject(projectID, expanded: shouldExpand)
+    case .unknownSection(let categoryID):
+      setUnknownSection(categoryID, expanded: shouldExpand)
+    case .service(let serviceID):
+      guard let container = localKeyboardContainer(for: serviceID) else { return }
+      switch container {
+      case .project(let projectID):
+        setProject(projectID, expanded: shouldExpand)
+        if !shouldExpand {
+          selectedLocalKeyboardItemID = LocalKeyboardNavigationID.project(projectID)
+        }
+      case .unknownSection(let categoryID):
+        setUnknownSection(categoryID, expanded: shouldExpand)
+        if !shouldExpand {
+          selectedLocalKeyboardItemID = LocalKeyboardNavigationID.unknownSection(categoryID)
+        }
+      case .service:
+        break
+      }
+    }
+  }
+
+  private func runSelectedLocalKeyboardItem() {
+    guard let item = selectedLocalKeyboardItem else { return }
+
+    switch item.kind {
+    case .project(let projectID):
+      toggleProject(projectID)
+    case .unknownSection(let categoryID):
+      guard let category = PortdeckUnknownServiceCategory(rawValue: categoryID) else { return }
+      toggleUnknownSection(category)
+    case .service:
+      guard let service = selectedLocalKeyboardService,
+        let rawURL = service.openURLString(preferNamedURLs: false),
+        let url = URL(string: rawURL)
+      else {
+        return
+      }
+      NSWorkspace.shared.open(url)
+    }
+  }
+
+  private func clearLocalKeyboardSelection() {
+    selectedLocalKeyboardItemID = nil
+    withAnimation(.easeOut(duration: 0.14)) {
+      isLocalKeyboardNavigationActive = false
+    }
+  }
+
+  private func cycleProvider(_ delta: Int) {
+    let providers = ProviderTabShortcut.orderedProviders(providerConfiguration.visibleProviders)
+    guard providers.count > 1,
+      let currentIndex = providers.firstIndex(of: selectedSource)
+    else {
+      return
+    }
+
+    let nextIndex = (currentIndex + delta + providers.count) % providers.count
+    selectSource(providers[nextIndex])
+  }
+
+  private func normalizeLocalKeyboardSelection() {
+    guard let selectedLocalKeyboardItemID,
+      !localKeyboardItemIDs.contains(selectedLocalKeyboardItemID)
+    else {
+      return
+    }
+
+    clearLocalKeyboardSelection()
+  }
+
+  private func setProject(_ id: String, expanded: Bool) {
+    if expanded {
+      collapsedProjectIDs.remove(id)
+    } else {
+      collapsedProjectIDs.insert(id)
+    }
+  }
+
+  private func setUnknownSection(_ id: String, expanded: Bool) {
+    if expanded {
+      expandedUnknownSectionIDs.insert(id)
+    } else {
+      expandedUnknownSectionIDs.remove(id)
+    }
+  }
+
+  private func localKeyboardContainer(for serviceID: String) -> LocalKeyboardNavigationItemKind? {
+    guard let status = model.status else { return nil }
+
+    for project in visibleProjects(for: status)
+    where project.worktrees.flatMap(\.services).contains(where: { $0.id == serviceID }) {
+      return .project(id: project.id)
+    }
+
+    for section in visibleUnknownSections(for: status)
+    where section.services.contains(where: { $0.id == serviceID }) {
+      return .unknownSection(id: section.category.id)
+    }
+
+    return nil
   }
 
   private func moveCommandPaletteSelection(_ delta: Int) {
@@ -824,6 +1115,9 @@ struct StatusView: View {
     case .toggleSystemListeners:
       model.showLikelySystemListeners.toggle()
       dismissCommandPalette()
+    case .showKeyboardShortcuts:
+      dismissCommandPalette()
+      presentKeyboardShortcuts()
     }
   }
 
@@ -1361,6 +1655,7 @@ private func openFolderInVSCode(_ path: String) {
 private struct ProjectSection: View {
   let project: VisibleProjectGroup
   let preferNamedURLs: Bool
+  let selectedKeyboardItemID: String?
   let isExpanded: Bool
   let isStopping: Bool
   let stoppingServiceID: String?
@@ -1419,6 +1714,12 @@ private struct ProjectSection: View {
         .accessibilityLabel(isExpanded ? "Collapse \(project.group.projectName)" : "Expand \(project.group.projectName)")
       }
       .padding(12)
+      .background(
+        selectedKeyboardItemID == LocalKeyboardNavigationID.project(project.id)
+          ? Color.accentColor.opacity(0.12)
+          : Color.clear,
+        in: RoundedRectangle(cornerRadius: 8)
+      )
 
       if isExpanded {
         VStack(spacing: 4) {
@@ -1428,6 +1729,7 @@ private struct ProjectSection: View {
               repoRoot: project.group.repoRoot,
               worktree: worktree,
               preferNamedURLs: preferNamedURLs,
+              selectedKeyboardItemID: selectedKeyboardItemID,
               showsHeader: worktree.id == project.worktrees.first?.id,
               branchDisplayedInProjectHeader: headerBranchMetadata != nil,
               projectWorktreeCount: project.group.worktrees.count,
@@ -1633,6 +1935,7 @@ private struct WorktreeBlock: View {
   let repoRoot: String?
   let worktree: VisibleWorktreeGroup
   let preferNamedURLs: Bool
+  let selectedKeyboardItemID: String?
   let showsHeader: Bool
   let branchDisplayedInProjectHeader: Bool
   let projectWorktreeCount: Int
@@ -1669,11 +1972,13 @@ private struct WorktreeBlock: View {
         ServiceRow(
           service: service,
           preferNamedURLs: preferNamedURLs,
+          isKeyboardSelected: selectedKeyboardItemID == LocalKeyboardNavigationID.service(service.id),
           isStoppingGlobally: isStopping,
           stoppingProjectTarget: stoppingProjectTarget,
           stoppingServiceID: stoppingServiceID,
           onStop: onStop
         )
+        .id(LocalKeyboardNavigationID.service(service.id))
       }
     }
   }
@@ -1801,6 +2106,7 @@ private struct ServiceTableHeader: View {
 private struct ServiceRow: View {
   let service: PortdeckService
   let preferNamedURLs: Bool
+  let isKeyboardSelected: Bool
   let isStoppingGlobally: Bool
   let stoppingProjectTarget: ProjectStopAllTarget?
   let stoppingServiceID: String?
@@ -1932,6 +2238,17 @@ private struct ServiceRow: View {
         .padding(.bottom, 7)
         .help(exposure.serviceDisplayText)
       }
+    }
+    .background(
+      isKeyboardSelected ? Color.accentColor.opacity(0.12) : Color.clear,
+      in: RoundedRectangle(cornerRadius: 6)
+    )
+    .overlay {
+      RoundedRectangle(cornerRadius: 6)
+        .stroke(
+          isKeyboardSelected ? Color.accentColor.opacity(0.34) : Color.clear,
+          lineWidth: 1
+        )
     }
     .overlay(alignment: .leading) {
       if presentation.needsAttention {
@@ -2198,6 +2515,7 @@ private struct LocalProblemRow: View {
 private struct UnknownSection: View {
   let section: PortdeckUnknownServiceSection
   let preferNamedURLs: Bool
+  let selectedKeyboardItemID: String?
   let isExpanded: Bool
   let isStopping: Bool
   let stoppingServiceID: String?
@@ -2240,6 +2558,12 @@ private struct UnknownSection: View {
         .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
+      .background(
+        selectedKeyboardItemID == LocalKeyboardNavigationID.unknownSection(section.category.id)
+          ? Color.accentColor.opacity(0.12)
+          : Color.clear,
+        in: RoundedRectangle(cornerRadius: 8)
+      )
       .help(isExpanded ? "Collapse \(section.category.title)" : "Expand \(section.category.title)")
       .accessibilityLabel(
         "\(isExpanded ? "Collapse" : "Expand") \(section.category.title), \(section.services.count) services"
@@ -2254,11 +2578,13 @@ private struct UnknownSection: View {
             ServiceRow(
               service: service,
               preferNamedURLs: preferNamedURLs,
+              isKeyboardSelected: selectedKeyboardItemID == LocalKeyboardNavigationID.service(service.id),
               isStoppingGlobally: isStopping,
               stoppingProjectTarget: nil,
               stoppingServiceID: stoppingServiceID,
               onStop: onStop
             )
+            .id(LocalKeyboardNavigationID.service(service.id))
           }
         }
         .padding(.horizontal, 10)

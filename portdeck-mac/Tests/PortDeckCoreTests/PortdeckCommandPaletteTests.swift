@@ -89,6 +89,7 @@ import Testing
 
   #expect(actions.containsAction(.refreshStatus, title: "Refresh current view"))
   #expect(actions.containsAction(.copyJSON, title: "Copy status JSON"))
+  #expect(actions.containsAction(.showKeyboardShortcuts, title: "Show keyboard shortcuts"))
   #expect(actions.containsAction(.switchSource(.local), title: "Switch to Local"))
   #expect(actions.containsAction(.switchSource(.vercel), title: "Switch to Vercel"))
   #expect(actions.containsAction(.switchSource(.convex), title: "Switch to Convex"))
@@ -185,6 +186,7 @@ import Testing
   #expect(PortdeckCommandPalette.matching("vercel", in: actions).map(\.title).contains("Switch to Vercel"))
   #expect(PortdeckCommandPalette.matching("json", in: actions).map(\.title).first == "Copy status JSON")
   #expect(PortdeckCommandPalette.matching("system listeners", in: actions).map(\.title).first == "Show likely system listeners")
+  #expect(PortdeckCommandPalette.matching("keybinds", in: actions).map(\.title).first == "Show keyboard shortcuts")
 }
 
 @Test func commandPaletteActionPresentationUsesClearRolesAndIcons() throws {
