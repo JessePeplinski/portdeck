@@ -83,6 +83,43 @@ import Testing
   #expect(model.orderedProviders.first == .local)
 }
 
+@Test func providerReorderSessionDoesNotOscillateAtAStationaryPointer() {
+  let startingOrder: [PortdeckDashboardSource] = [
+    .local, .convex, .vercel, .github
+  ]
+  let rowFrames: [PortdeckDashboardSource: CGRect] = [
+    .local: CGRect(x: 0, y: 0, width: 300, height: 40),
+    .convex: CGRect(x: 0, y: 40, width: 300, height: 40),
+    .vercel: CGRect(x: 0, y: 80, width: 300, height: 40),
+    .github: CGRect(x: 0, y: 120, width: 300, height: 40)
+  ]
+  let session = ProviderReorderSession(
+    draggedProvider: .convex,
+    startingOrder: startingOrder,
+    rowFrames: rowFrames
+  )
+
+  let firstUpdate = session.reorderedProviders(
+    from: startingOrder,
+    at: 140
+  )
+  let secondUpdate = session.reorderedProviders(
+    from: firstUpdate,
+    at: 140
+  )
+
+  #expect(firstUpdate == [.local, .vercel, .github, .convex])
+  #expect(secondUpdate == firstUpdate)
+}
+
+@Test func providerReorderPointerUsesStableWindowCoordinates() {
+  let pointerSession = ProviderReorderPointerSession(originWindowY: 500)
+
+  #expect(pointerSession.verticalTranslation(atWindowY: 460) == 40)
+  #expect(pointerSession.verticalTranslation(atWindowY: 540) == -40)
+  #expect(pointerSession.verticalTranslation(atWindowY: 500) == 0)
+}
+
 @MainActor
 @Test func providerConfigurationFallsBackWhenSelectedProviderIsHidden() {
   let model = ProviderConfigurationModel(userDefaults: makeProviderDefaults())

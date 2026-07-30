@@ -2927,8 +2927,10 @@ private struct CommandPaletteKeyboardMonitor: NSViewRepresentable {
 private struct ProviderCustomizationOverlay: View {
   @ObservedObject var model: ProviderConfigurationModel
   let onDismiss: () -> Void
+  @State private var pressedProvider: PortdeckDashboardSource?
   @State private var draggedProvider: PortdeckDashboardSource?
-  @State private var dropTarget: PortdeckDashboardSource?
+  @State private var reorderSession: ProviderReorderSession?
+  @State private var previewProviderOrder: [PortdeckDashboardSource]?
   @State private var providerRowFrames: [PortdeckDashboardSource: CGRect] = [:]
 
   var body: some View {
@@ -2963,7 +2965,7 @@ private struct ProviderCustomizationOverlay: View {
         Divider()
 
         VStack(spacing: 0) {
-          ForEach(Array(model.orderedProviders.enumerated()), id: \.element) { index, provider in
+          ForEach(Array(displayedProviderOrder.enumerated()), id: \.element) { index, provider in
             if index > 0 {
               Divider()
                 .padding(.leading, 46)
@@ -2988,14 +2990,13 @@ private struct ProviderCustomizationOverlay: View {
     }
   }
 
+  private var displayedProviderOrder: [PortdeckDashboardSource] {
+    previewProviderOrder ?? model.orderedProviders
+  }
+
   @ViewBuilder
   private func providerRow(_ provider: PortdeckDashboardSource) -> some View {
-    if provider == .local {
-      providerRowContent(provider)
-    } else {
-      providerRowContent(provider)
-        .simultaneousGesture(reorderGesture(for: provider))
-    }
+    providerRowContent(provider)
   }
 
   private func providerRowContent(_ provider: PortdeckDashboardSource) -> some View {
@@ -3043,24 +3044,20 @@ private struct ProviderCustomizationOverlay: View {
     .background {
       RoundedRectangle(cornerRadius: 7, style: .continuous)
         .fill(
-          draggedProvider == provider
-            ? Color.accentColor.opacity(0.18)
-            : dropTarget == provider
-              ? Color.accentColor.opacity(0.10)
-              : .clear
+          isEngaged(provider) ? Color.accentColor.opacity(0.18) : .clear
         )
     }
     .overlay {
       RoundedRectangle(cornerRadius: 7, style: .continuous)
         .stroke(
-          draggedProvider == provider ? Color.accentColor.opacity(0.58) : .clear,
+          isEngaged(provider) ? Color.accentColor.opacity(0.58) : .clear,
           lineWidth: 1
         )
     }
     .contentShape(Rectangle())
-    .scaleEffect(draggedProvider == provider ? 0.985 : 1)
+    .scaleEffect(isEngaged(provider) ? 0.985 : 1)
+    .animation(.easeInOut(duration: 0.12), value: pressedProvider)
     .animation(.easeInOut(duration: 0.14), value: draggedProvider)
-    .animation(.easeInOut(duration: 0.14), value: dropTarget)
     .contextMenu {
       if provider != .local {
         Button("Move Earlier") {
@@ -3080,72 +3077,51 @@ private struct ProviderCustomizationOverlay: View {
     }
   }
 
-  private func reorderGesture(
-    for provider: PortdeckDashboardSource
-  ) -> some Gesture {
-    DragGesture(
-      minimumDistance: 6,
-      coordinateSpace: .named("providerCustomizationRows")
-    )
-    .onChanged { value in
-      guard draggedProvider == nil || draggedProvider == provider else {
-        return
-      }
-
-      if draggedProvider == nil {
-        withAnimation(.easeInOut(duration: 0.12)) {
-          draggedProvider = provider
-        }
-      }
-
-      reorderDraggedProvider(provider, at: value.location.y)
-    }
-    .onEnded { _ in
-      withAnimation(.easeInOut(duration: 0.14)) {
-        draggedProvider = nil
-        dropTarget = nil
-      }
-    }
+  private func isEngaged(_ provider: PortdeckDashboardSource) -> Bool {
+    pressedProvider == provider || draggedProvider == provider
   }
 
   private func reorderDraggedProvider(
     _ provider: PortdeckDashboardSource,
     at pointerY: CGFloat
   ) {
-    let availableTargets = model.orderedProviders.compactMap { candidate -> (
-      provider: PortdeckDashboardSource,
-      frame: CGRect
-    )? in
-      guard let frame = providerRowFrames[candidate] else {
-        return nil
-      }
-      return (candidate, frame)
-    }
-
     guard
-      let target = availableTargets.min(by: {
-        abs($0.frame.midY - pointerY) < abs($1.frame.midY - pointerY)
-      })?.provider
+      let reorderSession,
+      reorderSession.draggedProvider == provider
     else {
       return
     }
 
-    dropTarget = target
-    guard
-      provider != target,
-      let providerIndex = model.orderedProviders.firstIndex(of: provider),
-      let targetIndex = model.orderedProviders.firstIndex(of: target)
-    else {
+    let reorderedProviders = reorderSession.reorderedProviders(
+      from: displayedProviderOrder,
+      at: pointerY
+    )
+    guard reorderedProviders != displayedProviderOrder else {
       return
     }
 
     withAnimation(.easeInOut(duration: 0.14)) {
-      _ = model.move(
-        provider,
-        relativeTo: target,
-        insertAfter: providerIndex < targetIndex
-      )
+      previewProviderOrder = reorderedProviders
     }
+  }
+
+  private func commitReorderPreview(for provider: PortdeckDashboardSource) {
+    guard
+      let previewProviderOrder,
+      previewProviderOrder != model.orderedProviders,
+      let destinationIndex = previewProviderOrder.firstIndex(of: provider),
+      destinationIndex > previewProviderOrder.startIndex
+    else {
+      return
+    }
+    let precedingProvider = previewProviderOrder[
+      previewProviderOrder.index(before: destinationIndex)
+    ]
+    _ = model.move(
+      provider,
+      relativeTo: precedingProvider,
+      insertAfter: true
+    )
   }
 
   @ViewBuilder
@@ -3158,11 +3134,56 @@ private struct ProviderCustomizationOverlay: View {
         .accessibilityLabel("Local stays first")
         .help("Local stays first")
     } else {
-      Image(systemName: "line.3.horizontal")
-        .font(.callout)
-        .foregroundStyle(.secondary)
-        .frame(width: 28, height: 28)
-        .contentShape(Rectangle())
+      ZStack {
+        Image(systemName: "line.3.horizontal")
+          .font(.callout)
+          .foregroundStyle(.secondary)
+
+        ReorderHandleInteraction(
+          onPress: {
+            guard providerRowFrames[provider] != nil else {
+              return
+            }
+            reorderSession = ProviderReorderSession(
+              draggedProvider: provider,
+              startingOrder: model.orderedProviders,
+              rowFrames: providerRowFrames
+            )
+            previewProviderOrder = model.orderedProviders
+            withAnimation(.easeInOut(duration: 0.12)) {
+              pressedProvider = provider
+            }
+          },
+          onDrag: { verticalTranslation in
+            guard
+              pressedProvider == provider,
+              let reorderSession,
+              let dragOriginY = reorderSession.rowFrames[provider]?.midY
+            else {
+              return
+            }
+
+            if draggedProvider == nil {
+              draggedProvider = provider
+            }
+            reorderDraggedProvider(
+              provider,
+              at: dragOriginY + verticalTranslation
+            )
+          },
+          onEnd: {
+            commitReorderPreview(for: provider)
+            withAnimation(.easeInOut(duration: 0.14)) {
+              pressedProvider = nil
+              draggedProvider = nil
+              reorderSession = nil
+              previewProviderOrder = nil
+            }
+          }
+        )
+      }
+      .frame(width: 28, height: 28)
+      .contentShape(Rectangle())
       .accessibilityLabel("Reorder \(provider.title)")
       .accessibilityAction(named: "Move Earlier") {
         _ = model.moveUp(provider)
@@ -3181,6 +3202,140 @@ private struct ProviderCustomizationOverlay: View {
     return model.isVisible(provider)
       ? "Hide the \(provider.title) provider tab"
       : "Show the \(provider.title) provider tab"
+  }
+}
+
+private struct ReorderHandleInteraction: NSViewRepresentable {
+  let onPress: () -> Void
+  let onDrag: (CGFloat) -> Void
+  let onEnd: () -> Void
+
+  func makeNSView(context: Context) -> ReorderHandleTrackingView {
+    let view = ReorderHandleTrackingView()
+    view.onPress = onPress
+    view.onDrag = onDrag
+    view.onEnd = onEnd
+    return view
+  }
+
+  func updateNSView(_ nsView: ReorderHandleTrackingView, context: Context) {
+    nsView.onPress = onPress
+    nsView.onDrag = onDrag
+    nsView.onEnd = onEnd
+  }
+}
+
+private final class ReorderHandleTrackingView: NSView {
+  var onPress: () -> Void = {}
+  var onDrag: (CGFloat) -> Void = { _ in }
+  var onEnd: () -> Void = {}
+
+  override var isFlipped: Bool {
+    true
+  }
+
+  private var pointerSession: ProviderReorderPointerSession?
+  private weak var cursorWindow: NSWindow?
+  private var cursorRectsAreLocked = false
+  private var isPressed = false {
+    didSet {
+      window?.invalidateCursorRects(for: self)
+    }
+  }
+
+  private static let moveCursor: NSCursor = {
+    guard let symbol = NSImage(
+      systemSymbolName: "arrow.up.and.down.and.arrow.left.and.right",
+      accessibilityDescription: "Move"
+    ) else {
+      return .closedHand
+    }
+
+    let outerConfiguration = NSImage.SymbolConfiguration(
+      pointSize: 18,
+      weight: .black
+    ).applying(
+      NSImage.SymbolConfiguration(paletteColors: [.white])
+    )
+    let innerConfiguration = NSImage.SymbolConfiguration(
+      pointSize: 14,
+      weight: .bold
+    ).applying(
+      NSImage.SymbolConfiguration(paletteColors: [.black])
+    )
+    let outerSymbol = symbol.withSymbolConfiguration(outerConfiguration) ?? symbol
+    let innerSymbol = symbol.withSymbolConfiguration(innerConfiguration) ?? symbol
+    let cursorImage = NSImage(size: NSSize(width: 22, height: 22))
+    cursorImage.lockFocus()
+    outerSymbol.draw(
+      in: NSRect(x: 1, y: 1, width: 20, height: 20)
+    )
+    innerSymbol.draw(
+      in: NSRect(x: 3, y: 3, width: 16, height: 16)
+    )
+    cursorImage.unlockFocus()
+    cursorImage.isTemplate = false
+
+    return NSCursor(
+      image: cursorImage,
+      hotSpot: NSPoint(x: 11, y: 11)
+    )
+  }()
+
+  override func resetCursorRects() {
+    addCursorRect(
+      bounds,
+      cursor: isPressed ? Self.moveCursor : .arrow
+    )
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    pointerSession = ProviderReorderPointerSession(
+      originWindowY: event.locationInWindow.y
+    )
+    cursorWindow = window
+    cursorWindow?.disableCursorRects()
+    cursorRectsAreLocked = true
+    isPressed = true
+    Self.moveCursor.set()
+    onPress()
+  }
+
+  override func mouseDragged(with event: NSEvent) {
+    guard let pointerSession else {
+      return
+    }
+    Self.moveCursor.set()
+    onDrag(
+      pointerSession.verticalTranslation(
+        atWindowY: event.locationInWindow.y
+      )
+    )
+  }
+
+  override func mouseUp(with event: NSEvent) {
+    pointerSession = nil
+    isPressed = false
+    onEnd()
+    unlockCursorRects()
+    NSCursor.arrow.set()
+  }
+
+  override func viewWillMove(toWindow newWindow: NSWindow?) {
+    if newWindow !== cursorWindow {
+      unlockCursorRects()
+    }
+    super.viewWillMove(toWindow: newWindow)
+  }
+
+  private func unlockCursorRects() {
+    guard cursorRectsAreLocked else {
+      return
+    }
+    cursorWindow?.enableCursorRects()
+    cursorWindow?.invalidateCursorRects(for: self)
+    cursorRectsAreLocked = false
+    cursorWindow = nil
   }
 }
 
