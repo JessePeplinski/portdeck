@@ -165,6 +165,36 @@ public enum LocalStatusPresentation {
     )
   }
 
+  public static func sessionStartedAt(for worktree: WorktreeGroup) -> Date? {
+    worktree.services
+      .compactMap { service in
+        guard let startedAt = service.startedAt else { return nil }
+        return try? Date(startedAt, strategy: .iso8601)
+      }
+      .min()
+  }
+
+  public static func sessionDurationLabel(startedAt: Date, relativeTo now: Date) -> String {
+    let totalMinutes = max(0, Int(now.timeIntervalSince(startedAt)) / 60)
+    if totalMinutes < 1 {
+      return "<1m"
+    }
+
+    let totalHours = totalMinutes / 60
+    let minutes = totalMinutes % 60
+    if totalHours < 1 {
+      return "\(totalMinutes)m"
+    }
+
+    let days = totalHours / 24
+    let hours = totalHours % 24
+    if days > 0 {
+      return hours > 0 ? "\(days)d \(hours)h" : "\(days)d"
+    }
+
+    return minutes > 0 ? "\(totalHours)h \(minutes)m" : "\(totalHours)h"
+  }
+
   public static func worktreeMetadata(
     _ worktree: WorktreeGroup,
     projectName: String,

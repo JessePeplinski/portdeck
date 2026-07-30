@@ -164,21 +164,30 @@ describe("parseLsofListenOutput", () => {
 describe("parsePsOutput", () => {
   test("extracts process command lines and derives executable names by pid", () => {
     const output = [
-      "  PID COMMAND",
-      " 1234 node /repo/node_modules/.bin/vite dev --host 127.0.0.1",
-      " 5678 /Applications/Docker.app/Contents/MacOS/com.docker.backend services",
-      " 62061 /Users/jesse/.cache/convex/convex-local-backend --port 3210"
+      "  PID     ELAPSED COMMAND",
+      " 1234       02:15 node /repo/node_modules/.bin/vite dev --host 127.0.0.1",
+      " 5678    01:03:04 /Applications/Docker.app/Contents/MacOS/com.docker.backend services",
+      " 62061  2-03:04:05 /Users/jesse/.cache/convex/convex-local-backend --port 3210"
     ].join("\n");
 
     expect(parsePsOutput(output)).toEqual(
       new Map([
-        [1234, { pid: 1234, processName: "node", command: "node /repo/node_modules/.bin/vite dev --host 127.0.0.1" }],
+        [
+          1234,
+          {
+            pid: 1234,
+            processName: "node",
+            command: "node /repo/node_modules/.bin/vite dev --host 127.0.0.1",
+            uptimeSeconds: 135
+          }
+        ],
         [
           5678,
           {
             pid: 5678,
             processName: "com.docker.backend",
-            command: "/Applications/Docker.app/Contents/MacOS/com.docker.backend services"
+            command: "/Applications/Docker.app/Contents/MacOS/com.docker.backend services",
+            uptimeSeconds: 3784
           }
         ],
         [
@@ -186,9 +195,26 @@ describe("parsePsOutput", () => {
           {
             pid: 62061,
             processName: "convex-local-backend",
-            command: "/Users/jesse/.cache/convex/convex-local-backend --port 3210"
+            command: "/Users/jesse/.cache/convex/convex-local-backend --port 3210",
+            uptimeSeconds: 183845
           }
         ]
+      ])
+    );
+  });
+
+  test("keeps process metadata when elapsed times are malformed", () => {
+    const output = [
+      " 1234 nope node server.js",
+      " 5678 25:00:00 python -m http.server",
+      " 9012 00:61 ruby app.rb"
+    ].join("\n");
+
+    expect(parsePsOutput(output)).toEqual(
+      new Map([
+        [1234, { pid: 1234, processName: "node", command: "node server.js" }],
+        [5678, { pid: 5678, processName: "python", command: "python -m http.server" }],
+        [9012, { pid: 9012, processName: "ruby", command: "ruby app.rb" }]
       ])
     );
   });
@@ -260,6 +286,9 @@ describe("Docker parsers", () => {
       {
         Id: "abc123",
         Name: "/portdeck-postgres-1",
+        State: {
+          StartedAt: "2026-07-30T14:12:03.456789Z"
+        },
         Config: {
           Image: "postgres:16",
           WorkingDir: "/workspace/apps/web",
@@ -312,7 +341,8 @@ describe("Docker parsers", () => {
             mode: "rw",
             rw: true
           }
-        ]
+        ],
+        startedAt: "2026-07-30T14:12:03.456789Z"
       }
     ]);
   });

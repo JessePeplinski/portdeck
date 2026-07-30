@@ -30,6 +30,7 @@ import Testing
                 "processName": "node",
                 "command": "npm run dev",
                 "cwd": "/repo/acme-web",
+                "startedAt": "2026-06-08T10:45:00.000Z",
                 "confidence": "high"
               },
               {
@@ -64,6 +65,7 @@ import Testing
   #expect(status.schemaVersion == "0.2")
   #expect(status.groups.count == 1)
   #expect(status.groups[0].worktrees[0].services.map(\.name) == ["web", "db"])
+  #expect(status.groups[0].worktrees[0].services[0].startedAt == "2026-06-08T10:45:00.000Z")
   #expect(status.groups[0].worktrees[0].services[0].subcontext == nil)
   #expect(status.groups[0].worktrees[0].services[1].containerName == "supabase_db_acme-web")
 }

@@ -46,6 +46,7 @@ Services:
 - `exposures`: optional public tunnel records attached to this service. These are informational exposure metadata and do not replace `url` or `listeners`.
 - `pid`, `processName`, `command`, and `cwd`: process details when known.
 - `hostIp`, `containerName`, `containerId`, `containerPort`, and `image`: Docker details when known.
+- `startedAt`: optional ISO timestamp for when the underlying process or container started. Process timestamps are derived from the OS-reported elapsed runtime; container timestamps come from Docker inspect.
 - `activity`: optional runtime activity snapshot. Includes process or container CPU and memory fields when PortDeck can collect them reliably.
 - `confidence`: `high`, `medium`, or `low` grouping confidence.
 - `subcontext`: optional package or workspace subcontext when the service can be tied to a more specific folder inside the worktree.

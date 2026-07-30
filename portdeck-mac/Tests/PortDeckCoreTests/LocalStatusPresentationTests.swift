@@ -253,6 +253,40 @@ import Testing
   #expect(!localSectionIsExpanded(searchText: "   ", isCollapsed: true))
 }
 
+@Test func reportsTheOldestRunningServiceAsTheLocalSessionDuration() throws {
+  let recent = localTestService(
+    id: "web",
+    name: "Web",
+    port: 3000,
+    startedAt: "2026-07-30T14:45:00Z"
+  )
+  let oldest = localTestService(
+    id: "api",
+    name: "API",
+    port: 3001,
+    startedAt: "2026-07-30T12:15:00Z"
+  )
+  let unavailable = localTestService(id: "database", name: "Database", port: 5432)
+  let worktree = WorktreeGroup(
+    name: "main",
+    path: "/repos/demo",
+    branch: "main",
+    services: [recent, unavailable, oldest]
+  )
+
+  let startedAt = try #require(LocalStatusPresentation.sessionStartedAt(for: worktree))
+  let expectedStartedAt = try Date("2026-07-30T12:15:00Z", strategy: .iso8601)
+  #expect(startedAt == expectedStartedAt)
+  #expect(LocalStatusPresentation.sessionDurationLabel(
+    startedAt: startedAt,
+    relativeTo: try Date("2026-07-30T15:29:00Z", strategy: .iso8601)
+  ) == "3h 14m")
+  #expect(LocalStatusPresentation.sessionDurationLabel(
+    startedAt: startedAt,
+    relativeTo: try Date("2026-08-01T13:15:00Z", strategy: .iso8601)
+  ) == "2d 1h")
+}
+
 private func localTestStatus(
   groups: [ProjectGroup] = [],
   unknown: [PortdeckService] = [],
@@ -315,7 +349,8 @@ private func localTestService(
   activity: ServiceActivity? = nil,
   containerID: String? = nil,
   subcontext: ServiceSubcontext? = nil,
-  groupingReason: String? = nil
+  groupingReason: String? = nil,
+  startedAt: String? = nil
 ) -> PortdeckService {
   PortdeckService(
     id: id,
@@ -338,6 +373,7 @@ private func localTestService(
     containerId: containerID,
     containerPort: source == "docker" ? port : nil,
     image: source == "docker" ? "postgres:17" : nil,
+    startedAt: startedAt,
     activity: activity,
     confidence: groupingReason == nil ? "high" : "low",
     subcontext: subcontext,

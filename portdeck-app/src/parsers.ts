@@ -176,13 +176,14 @@ export function parsePsOutput(output: string): Map<number, ProcessInfo> {
       continue;
     }
 
-    const columns = trimmed.match(/^(\d+)\s+(.+)$/);
+    const columns = trimmed.match(/^(\d+)\s+(\S+)\s+(.+)$/);
     if (!columns) {
       continue;
     }
 
-    const [, pidValue, command] = columns;
+    const [, pidValue, elapsed, command] = columns;
     const pid = Number(pidValue);
+    const uptimeSeconds = parseElapsedSeconds(elapsed);
     if (!Number.isInteger(pid)) {
       continue;
     }
@@ -191,11 +192,34 @@ export function parsePsOutput(output: string): Map<number, ProcessInfo> {
     processes.set(pid, {
       pid,
       processName: inferExecutableName(normalizedCommand),
-      command: normalizedCommand
+      command: normalizedCommand,
+      ...(uptimeSeconds !== undefined ? { uptimeSeconds } : {})
     });
   }
 
   return processes;
+}
+
+function parseElapsedSeconds(value: string): number | undefined {
+  const match = value.match(/^(?:(\d+)-)?(?:(\d{1,2}):)?(\d{1,2}):(\d{2})$/);
+  if (!match) {
+    return undefined;
+  }
+
+  const days = Number(match[1] ?? 0);
+  const hours = Number(match[2] ?? 0);
+  const minutes = Number(match[3]);
+  const seconds = Number(match[4]);
+  if (
+    ![days, hours, minutes, seconds].every(Number.isFinite) ||
+    hours > 23 ||
+    minutes > 59 ||
+    seconds > 59
+  ) {
+    return undefined;
+  }
+
+  return days * 86_400 + hours * 3_600 + minutes * 60 + seconds;
 }
 
 export function parsePsActivityOutput(output: string): Map<number, ServiceActivity> {
@@ -374,6 +398,8 @@ export function parseDockerInspectPorts(inspect: unknown): DiscoveredDockerPort[
     const composeConfigFiles = parseComposeConfigFiles(labels["com.docker.compose.project.config_files"]);
     const containerWorkingDir = nonEmptyString(config.WorkingDir);
     const mounts = parseDockerMounts(container.Mounts);
+    const state = isRecord(container.State) ? container.State : {};
+    const startedAt = nonEmptyString(state.StartedAt);
     const networkSettings = isRecord(container.NetworkSettings) ? container.NetworkSettings : {};
     const portMap = isRecord(networkSettings.Ports) ? networkSettings.Ports : {};
 
@@ -409,7 +435,8 @@ export function parseDockerInspectPorts(inspect: unknown): DiscoveredDockerPort[
           ...(composeProjectWorkingDir ? { composeProjectWorkingDir } : {}),
           ...(composeConfigFiles.length > 0 ? { composeConfigFiles } : {}),
           ...(containerWorkingDir ? { containerWorkingDir } : {}),
-          ...(mounts.length > 0 ? { mounts } : {})
+          ...(mounts.length > 0 ? { mounts } : {}),
+          ...(startedAt ? { startedAt } : {})
         } satisfies DiscoveredDockerPort;
 
         const key = `${port.containerId}:${port.hostIp}:${port.hostPort}:${port.containerPort}:${port.protocol}`;

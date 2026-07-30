@@ -25,3 +25,21 @@ import Testing
 
   #expect(longHeight > shortHeight)
 }
+
+@MainActor
+@Test func sessionDurationFitsBesideShortProjectMetadata() throws {
+  let startedAt = try Date("2026-07-30T12:15:00Z", strategy: .iso8601)
+  let withoutDuration = NSHostingView(rootView: ProjectHeaderLabel(
+    projectName: "PortDeck",
+    branchMetadata: LocalMetadataItem(text: "main", systemImage: "arrow.triangle.branch"),
+    problemLabel: nil
+  ).frame(width: 360))
+  let withDuration = NSHostingView(rootView: ProjectHeaderLabel(
+    projectName: "PortDeck",
+    branchMetadata: LocalMetadataItem(text: "main", systemImage: "arrow.triangle.branch"),
+    sessionStartedAt: startedAt,
+    problemLabel: nil
+  ).frame(width: 360))
+
+  #expect(withDuration.fittingSize.height == withoutDuration.fittingSize.height)
+}
