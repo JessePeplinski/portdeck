@@ -2,7 +2,7 @@ import Testing
 @testable import PortDeckMac
 
 @Test func menuWindowSizingCapsLargeDisplaysAtThePreferredHeight() {
-  #expect(MenuWindowSizing.height(availableHeight: 2_160) == 700)
+  #expect(MenuWindowSizing.height(availableHeight: 2_160) == 1_400)
 }
 
 @Test func menuWindowSizingLeavesRoomOnSmallerDisplays() {
