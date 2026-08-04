@@ -3,7 +3,7 @@ import SwiftUI
 
 enum MenuWindowSizing {
   static let width: CGFloat = 500
-  static let preferredHeight: CGFloat = 700
+  static let preferredHeight: CGFloat = 1_400
   static let fallbackHeight: CGFloat = 560
   static let displayMargin: CGFloat = 24
 
