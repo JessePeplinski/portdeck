@@ -84,8 +84,7 @@ final class ProviderTabRailScrollController: NSObject, ObservableObject {
 
   private func updateScrollAvailability() {
     guard let scrollView, let documentView = scrollView.documentView else {
-      canScrollBackward = false
-      canScrollForward = false
+      setScrollAvailability(backward: false, forward: false)
       return
     }
 
@@ -93,8 +92,17 @@ final class ProviderTabRailScrollController: NSObject, ObservableObject {
     let documentBounds = documentView.bounds
     let minimumX = documentBounds.minX
     let maximumX = max(minimumX, documentBounds.maxX - scrollView.contentView.bounds.width)
-    canScrollBackward = currentX > minimumX + 0.5
-    canScrollForward = currentX < maximumX - 0.5
+    setScrollAvailability(
+      backward: currentX > minimumX + 0.5,
+      forward: currentX < maximumX - 0.5
+    )
+  }
+
+  private func setScrollAvailability(backward: Bool, forward: Bool) {
+    // Resolving the AppKit view follows every SwiftUI update. Publishing an
+    // unchanged value here schedules another update and creates a busy loop.
+    if canScrollBackward != backward { canScrollBackward = backward }
+    if canScrollForward != forward { canScrollForward = forward }
   }
 }
 

@@ -35,6 +35,18 @@ type DiscoveryResult = {
   warnings: string[];
 };
 
+const DISCOVERY_CONCURRENCY = 4;
+
+async function forEachDiscoveryItem<T>(items: T[], operation: (item: T) => Promise<void>): Promise<void> {
+  let nextIndex = 0;
+  await Promise.all(Array.from({ length: Math.min(DISCOVERY_CONCURRENCY, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const item = items[nextIndex++]!;
+      await operation(item);
+    }
+  }));
+}
+
 export async function getPortdeckStatus(): Promise<PortdeckStatus> {
   const discovery = await discover();
   return await buildStatus({
@@ -116,19 +128,17 @@ async function discoverProcesses(
   );
   const processes = result ? parsePsOutput(result.stdout) : new Map<number, ProcessInfo>();
 
-  await Promise.all(
-    pids.map(async (pid) => {
-      const process = processes.get(pid) ?? {
-        pid,
-        processName: ports.find((port) => port.pid === pid)?.processName ?? "unknown"
-      };
-      const cwd = await readProcessCwd(pid, warnings);
-      if (cwd) {
-        process.cwd = cwd;
-      }
-      processes.set(pid, process);
-    })
-  );
+  await forEachDiscoveryItem(pids, async (pid) => {
+    const process = processes.get(pid) ?? {
+      pid,
+      processName: ports.find((port) => port.pid === pid)?.processName ?? "unknown"
+    };
+    const cwd = await readProcessCwd(pid, warnings);
+    if (cwd) {
+      process.cwd = cwd;
+    }
+    processes.set(pid, process);
+  });
 
   return processes;
 }
@@ -170,14 +180,12 @@ function collectDiscoveryPaths(processes: Map<number, ProcessInfo>, dockerPorts:
 async function discoverGitInfo(cwdValues: string[], warnings: string[]): Promise<Map<string, GitInfo>> {
   const gitByCwd = new Map<string, GitInfo>();
 
-  await Promise.all(
-    cwdValues.map(async (cwd) => {
-      const git = await readGitInfo(cwd, warnings);
-      if (git) {
-        gitByCwd.set(cwd, git);
-      }
-    })
-  );
+  await forEachDiscoveryItem(cwdValues, async (cwd) => {
+    const git = await readGitInfo(cwd, warnings);
+    if (git) {
+      gitByCwd.set(cwd, git);
+    }
+  });
 
   return gitByCwd;
 }
@@ -188,19 +196,17 @@ async function discoverPackageContexts(
 ): Promise<Map<string, PackageSubcontext>> {
   const packageByCwd = new Map<string, PackageSubcontext>();
 
-  await Promise.all(
-    cwdValues.map(async (cwd) => {
-      const git = gitByCwd.get(cwd);
-      if (!git) {
-        return;
-      }
+  await forEachDiscoveryItem(cwdValues, async (cwd) => {
+    const git = gitByCwd.get(cwd);
+    if (!git) {
+      return;
+    }
 
-      const packageContext = await resolvePackageContext(cwd, git.worktreePath);
-      if (packageContext) {
-        packageByCwd.set(cwd, packageContext);
-      }
-    })
-  );
+    const packageContext = await resolvePackageContext(cwd, git.worktreePath);
+    if (packageContext) {
+      packageByCwd.set(cwd, packageContext);
+    }
+  });
 
   return packageByCwd;
 }
@@ -510,7 +516,12 @@ async function safeExeca(
   options: { quiet?: boolean } = {}
 ): Promise<{ stdout: string } | undefined> {
   try {
-    return await execa(command, args, { reject: true });
+    return await execa(command, args, {
+      reject: true,
+      timeout: 5_000,
+      forceKillAfterDelay: 500,
+      maxBuffer: 8 * 1024 * 1024
+    });
   } catch (error) {
     if (!options.quiet) {
       warnings.push(`${label} failed: ${formatCommandError(error)}`);
