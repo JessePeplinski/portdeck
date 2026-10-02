@@ -29,11 +29,14 @@ async function probeHttpEndpoint(url: string, timeoutMs: number): Promise<Endpoi
 
   return new Promise<EndpointHealth>((resolve) => {
     let settled = false;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
     const settle = (health: EndpointHealth) => {
       if (settled) {
         return;
       }
       settled = true;
+      clearTimeout(deadline);
+      request.destroy();
       resolve(health);
     };
 
@@ -41,7 +44,6 @@ async function probeHttpEndpoint(url: string, timeoutMs: number): Promise<Endpoi
       const statusCode = response.statusCode ?? 0;
       const status = statusCode >= 200 && statusCode < 400 ? "ok" : "http-error";
       const remoteAddress = response.socket.remoteAddress;
-      response.resume();
       settle({
         url,
         status,
@@ -49,17 +51,22 @@ async function probeHttpEndpoint(url: string, timeoutMs: number): Promise<Endpoi
         ...(remoteAddress ? { remoteAddress } : {}),
         latencyMs: elapsedMs(startedAt)
       });
+      // Health uses headers only. Draining a large or streaming body keeps
+      // sockets and the discovery helper alive after the result is complete.
+      response.destroy();
     });
 
-    request.on("timeout", () => {
+    const timeout = () => {
       settle({
         url,
         status: "timeout",
         latencyMs: elapsedMs(startedAt),
         error: `Timed out after ${timeoutMs}ms`
       });
-      request.destroy();
-    });
+    };
+    request.on("timeout", timeout);
+    // Socket timeouts measure inactivity; trickled headers reset them forever.
+    deadline = setTimeout(timeout, timeoutMs);
 
     request.on("error", (error) => {
       settle({

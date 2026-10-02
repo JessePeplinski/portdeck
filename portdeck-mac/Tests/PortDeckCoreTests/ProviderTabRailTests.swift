@@ -1,7 +1,35 @@
 import AppKit
+import Combine
 import PortDeckCore
 import Testing
 @testable import PortDeckMac
+
+@Test @MainActor
+func providerTabRailRepeatedResolutionDoesNotInvalidateUnchangedUI() {
+  let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 100, height: 30))
+  scrollView.documentView = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 30))
+  let controller = ProviderTabRailScrollController()
+  controller.attach(scrollView)
+  var invalidations = 0
+  let subscription = controller.objectWillChange.sink { invalidations += 1 }
+
+  // SwiftUI updates the resolver after a controller publication. Resolving the
+  // same scroll view must settle, rather than publishing another redraw forever.
+  for _ in 0..<100 {
+    controller.attach(scrollView)
+  }
+  #expect(invalidations == 0)
+
+  controller.scrollPage(.forward, animated: false)
+  #expect(invalidations == 1)
+  controller.attach(scrollView)
+  #expect(invalidations == 1)
+  controller.attach(nil)
+  #expect(invalidations == 3)
+  controller.attach(nil)
+  #expect(invalidations == 3)
+  withExtendedLifetime(subscription) {}
+}
 
 @Test
 func providerTabShortcutsFollowVisibleNavigationOrderAndStopAtNine() {

@@ -198,6 +198,10 @@ All provider models remain app-owned above the tab view, so changing tab order d
 
 Local retains its last successful decoded status and raw JSON when a later discovery command fails. The last-successful timestamp advances only after a valid snapshot, while a bounded credential-redacted error marks the retained view as degraded. Successful refreshes preserve the existing project, worktree, service, and unknown-service order for still-present identities so five-second polling does not cause avoidable row movement; newly discovered identities append in discovery order.
 
+Local discovery bounds process/cwd, Git, and package inspections to four concurrent items per stage. Each discovery subprocess has a five-second timeout, a 500 ms force-kill grace period, and an 8 MiB output limit per stream. The Mac app captures helper output in private temporary files to avoid pipe backpressure deadlocks, enforces a 30-second helper deadline and an 8 MiB per-stream read limit, and terminates the helper when its refresh task is cancelled. Cancellation and failed refreshes retain the last successful snapshot. Output files are removed after completion, failure, or cancellation.
+
+Ambiguous-endpoint health probes collect HTTP status headers only and immediately close the response. A total 1.2-second deadline supplements the socket inactivity timeout so streaming bodies or slowly trickled headers cannot keep discovery alive indefinitely. Provider-tab scroll availability publishes only actual changes; resolving an unchanged AppKit scroll view must not trigger another SwiftUI update.
+
 ## Future Workspace Awareness
 
 Workspace and package awareness belongs in the discovery/status layer first. Parent repos can contain multiple subfolders, apps, or packages, but `portdeck-app` should resolve the most specific package or subcontext and expose it in status JSON. `portdeck-mac` should render that grouping once the contract supports it.
