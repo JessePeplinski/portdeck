@@ -1,6 +1,6 @@
 # Local performance investigation
 
-Investigation date: October 2, 2026. Changes are local source changes, not a published release.
+Investigation date: October 2, 2026. The investigation and measurements below were captured before the beta.18 release.
 
 ## Confirmed issues and fixes
 
