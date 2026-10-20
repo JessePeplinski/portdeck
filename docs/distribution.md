@@ -56,6 +56,8 @@ Install [`create-dmg`](https://github.com/create-dmg/create-dmg) with `brew inst
 
 `npm run preflight:mac:github-release` checks the approved icon, packaging tools, Developer ID Application identity, and notarytool profile. It does not sign or upload an artifact.
 
+The existing release-owner notarytool profile is `portdeck-notary-peptech` in iCloud Keychain. Set `PORTDECK_NOTARYTOOL_PROFILE=portdeck-notary-peptech` and set `PORTDECK_SIGNING_IDENTITY` to the installed Developer ID Application identity before preflight. A missing result from `security find-generic-password` does not prove this iCloud profile is absent: preflight falls back to read-only `notarytool history` authentication. Reuse the saved profile without exporting or copying its credentials.
+
 After explicit approval to use signing credentials and upload to Apple:
 
 ```bash
