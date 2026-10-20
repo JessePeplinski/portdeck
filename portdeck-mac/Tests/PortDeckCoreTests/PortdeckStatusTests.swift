@@ -1238,3 +1238,17 @@ private func makeSubcontext(
     manifestPath: "\(path)/package.json"
   )
 }
+
+@Test func preservesDetectedHTTPSForLocalOpenActions() throws {
+  for endpoint in ["https://localhost:3000", "https://127.0.0.1:4000", "https://[::1]:5173"] {
+    let json = """
+    {"schemaVersion":"0.2","generatedAt":"2026-10-20T12:00:00Z","groups":[],
+     "unknown":[{"id":"secure-web","name":"web","source":"process","status":"running",
+     "url":"\(endpoint)","confidence":"high"}],"warnings":[]}
+    """
+    let status = try JSONDecoder().decode(PortdeckStatus.self, from: Data(json.utf8))
+    let service = try #require(status.unknown.first)
+    #expect(service.openURLString(preferNamedURLs: false) == endpoint)
+    #expect(service.openURLString(preferNamedURLs: true) == endpoint)
+  }
+}

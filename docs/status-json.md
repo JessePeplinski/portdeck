@@ -64,7 +64,7 @@ Service listeners:
 - `address`: exact listener address from discovery, such as `127.0.0.1`, `::1`, `*`, `0.0.0.0`, or `::`.
 - `family`: optional inferred address family, currently `IPv4`, `IPv6`, or `unknown`.
 - `port`: numeric host port.
-- `url`: generated HTTP URL for that endpoint. IPv6 loopback is bracketed, for example `http://[::1]:3000`. Wildcard binds use `http://localhost:<port>`.
+- `url`: generated HTTP or HTTPS URL for that endpoint. Discovery uses a bounded HTTPS HEAD request to detect TLS on arbitrary ports, including self-signed development certificates; unsuccessful detection retains HTTP. IPv6 loopback is bracketed, for example `http://[::1]:3000`. Wildcard binds use `http://localhost:<port>`.
 - `isWildcard`: whether the bind is a wildcard address.
 - `isLoopback`: whether the bind is a loopback address.
 - `isPreferred`: whether this listener produced `service.url`.
@@ -93,7 +93,7 @@ Port conflict metadata:
 - `message`: human-readable explanation, for example `localhost:3000 returns HTTP 500 while 127.0.0.1:3000 returns 200 OK`.
 - `endpoints`: probed endpoints for the ambiguous port. Each endpoint includes `url`, optional service identity fields (`serviceId`, `name`, `projectName`, `worktreeName`, `address`), and optional `health`.
 
-PortDeck probes only ambiguous same-port sets. A single service that listens on multiple addresses is not a port conflict, and unrelated services on unique ports do not receive endpoint health by default.
+PortDeck collects endpoint health only for ambiguous same-port sets. HTTPS scheme detection runs separately for discovered listeners, without following redirects or reading response bodies; certificate trust remains enforced by the browser and health probes. A single service that listens on multiple addresses is not a port conflict, and unrelated services on unique ports do not receive endpoint health by default.
 
 Exposure metadata:
 

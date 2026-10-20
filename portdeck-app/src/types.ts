@@ -213,5 +213,6 @@ export type BuildStatusInput = {
   packageByCwd?: Map<string, PackageSubcontext>;
   exposures?: PortdeckExposure[];
   warnings: string[];
+  detectHttpsEndpoints?: (urls: string[]) => Promise<Set<string>>;
   probeEndpoints?: (urls: string[]) => Promise<Map<string, EndpointHealth>>;
 };

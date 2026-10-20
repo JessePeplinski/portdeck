@@ -214,6 +214,18 @@ export async function buildStatus(input: BuildStatusInput): Promise<PortdeckStat
     worktree.services.push(service);
   }
 
+  if (input.detectHttpsEndpoints) {
+    const services = [...groups.values()].flatMap((group) => group.worktrees.flatMap((worktree) => worktree.services)).concat(unknown);
+    const urls = services.flatMap((service) => (service.listeners ?? []).map((listener) => listener.url));
+    const secureUrls = await input.detectHttpsEndpoints(urls);
+    for (const service of services) {
+      for (const listener of service.listeners ?? []) {
+        if (secureUrls.has(listener.url)) listener.url = listener.url.replace(/^http:/, "https:");
+      }
+      service.url = findPreferredListener(service.listeners ?? [])?.url ?? service.url;
+    }
+  }
+
   const exposures = input.exposures ? annotateExposures(input.exposures, groups, unknown, warnings) : undefined;
   const localhostCollisionContexts = annotateLocalhostCollisions(groups, unknown, warnings);
   const portConflicts = await buildPortConflicts(localhostCollisionContexts, input.probeEndpoints, warnings);
