@@ -200,6 +200,8 @@ Local retains its last successful decoded status and raw JSON when a later disco
 
 Local discovery bounds process/cwd, Git, and package inspections to four concurrent items per stage. Each discovery subprocess has a five-second timeout, a 500 ms force-kill grace period, and an 8 MiB output limit per stream. The Mac app captures helper output in private temporary files to avoid pipe backpressure deadlocks, enforces a 30-second helper deadline and an 8 MiB per-stream read limit, and terminates the helper when its refresh task is cancelled. Cancellation and failed refreshes retain the last successful snapshot. Output files are removed after completion, failure, or cancellation.
 
+Local listener URL scheme detection belongs to the helper. It tests HTTPS with a HEAD request on each distinct discovered endpoint, with at most eight concurrent requests and a 500 ms total deadline per request. Any HTTP response over TLS selects HTTPS, including error responses and self-signed development certificates. Failed detection preserves HTTP. Detection does not read bodies, follow redirects, modify trust stores, or disable certificate checks for browser navigation or endpoint health.
+
 Ambiguous-endpoint health probes collect HTTP status headers only and immediately close the response. A total 1.2-second deadline supplements the socket inactivity timeout so streaming bodies or slowly trickled headers cannot keep discovery alive indefinitely. Provider-tab scroll availability publishes only actual changes; resolving an unchanged AppKit scroll view must not trigger another SwiftUI update.
 
 ## Future Workspace Awareness

@@ -22,6 +22,13 @@ enum FooterAttribution {
 }
 
 struct StatusView: View {
+  private static let isLocalBuild: Bool = {
+    guard let resources = Bundle.main.resourceURL else { return false }
+    return FileManager.default.fileExists(
+      atPath: resources.appendingPathComponent(".portdeck-source-development").path
+    )
+  }()
+
   @Environment(\.openSettings) private var openSettings
   @ObservedObject var model: StatusModel
   @ObservedObject var vercelModel: VercelStatusModel
@@ -237,6 +244,17 @@ struct StatusView: View {
       if showsHeaderProgress {
         ProgressView()
           .controlSize(.small)
+      }
+      if Self.isLocalBuild {
+        Text("LOCAL")
+          .font(.system(size: 9, weight: .bold, design: .rounded))
+          .tracking(0.6)
+          .foregroundStyle(.orange)
+          .padding(.horizontal, 7)
+          .padding(.vertical, 4)
+          .background(.orange.opacity(0.12), in: Capsule())
+          .accessibilityLabel("Local development build")
+          .help("Local development build · \(updateController.currentVersion)")
       }
     }
     .padding(14)

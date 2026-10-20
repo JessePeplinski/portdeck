@@ -84,3 +84,46 @@ async function probeHttpEndpoint(url: string, timeoutMs: number): Promise<Endpoi
 function elapsedMs(startedAt: number): number {
   return Math.max(0, Date.now() - startedAt);
 }
+
+// Scheme detection is separate from health: development certificates need not
+// be trusted by Node, and no response body or redirect is followed.
+export async function detectHttpsEndpoints(urls: string[], timeoutMs = 500): Promise<Set<string>> {
+  const pending = Array.from(new Set(urls));
+  const detected = new Set<string>();
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(8, pending.length) }, async () => {
+    while (next < pending.length) {
+      const url = pending[next++]!;
+      if (await acceptsHttps(url, timeoutMs)) detected.add(url);
+    }
+  }));
+  return detected;
+}
+
+async function acceptsHttps(url: string, timeoutMs: number): Promise<boolean> {
+  const endpoint = new URL(url);
+  const port = endpoint.port || "80";
+  endpoint.protocol = "https:";
+  endpoint.port = port;
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      request.destroy();
+      resolve(result);
+    };
+    const request = https.request(endpoint, {
+      method: "HEAD",
+      rejectUnauthorized: false,
+      agent: false
+    }, (response) => {
+      finish(true);
+      response.destroy();
+    });
+    const deadline = setTimeout(() => finish(false), timeoutMs);
+    request.on("error", () => finish(false));
+    request.end();
+  });
+}

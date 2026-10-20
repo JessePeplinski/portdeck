@@ -10,7 +10,7 @@ import {
   parsePsOutput
 } from "./parsers.js";
 import { discoverNgrokExposures } from "./ngrok.js";
-import { probeHttpEndpoints } from "./probes.js";
+import { detectHttpsEndpoints, probeHttpEndpoints } from "./probes.js";
 import { buildStatus, collectDockerHostPathCandidates } from "./status.js";
 import type {
   DiscoveredDockerPort,
@@ -52,6 +52,7 @@ export async function getPortdeckStatus(): Promise<PortdeckStatus> {
   return await buildStatus({
     generatedAt: new Date().toISOString(),
     probeEndpoints: probeHttpEndpoints,
+    detectHttpsEndpoints,
     ...discovery
   });
 }
