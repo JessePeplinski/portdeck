@@ -138,6 +138,7 @@ public struct SystemVercelCommandRunner: VercelCommandRunning {
       }
     }
 
+    pathEntries.append(contentsOf: LoginShellPATH.entries(environment: environment))
     pathEntries.append(contentsOf: (environment["PATH"] ?? fallbackPath).split(separator: ":").map(String.init))
     var seenEntries = Set<String>()
     commandEnvironment["PATH"] = pathEntries

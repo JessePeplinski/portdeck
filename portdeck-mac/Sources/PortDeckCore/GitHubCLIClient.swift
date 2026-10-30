@@ -62,6 +62,10 @@ public struct SystemGitHubCommandRunner: GitHubCommandRunning {
     let process = Process()
     process.executableURL = executableURL
     process.arguments = arguments
+    process.environment = ProviderCLIExecutionEnvironment.make(
+      executableURL: executableURL,
+      base: ProcessInfo.processInfo.environment
+    )
     process.currentDirectoryURL = fileManager.homeDirectoryForCurrentUser
     process.standardOutput = stdoutHandle
     process.standardError = stderrHandle

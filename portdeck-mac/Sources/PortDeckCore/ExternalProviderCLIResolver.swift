@@ -120,10 +120,14 @@ public struct ExternalProviderCLIResolver: @unchecked Sendable {
   }
 
   public static func lookupInLoginShell(shellURL: URL, executableName: String) -> String? {
+    lastLoginShellLine(shellURL: shellURL, command: "command -v \(executableName)")
+  }
+
+  static func lastLoginShellLine(shellURL: URL, command: String) -> String? {
     let process = Process()
     let stdout = Pipe()
     process.executableURL = shellURL
-    process.arguments = ["-lc", "command -v \(executableName)"]
+    process.arguments = ["-lc", command]
     process.standardOutput = stdout
     process.standardError = FileHandle.nullDevice
 
@@ -143,6 +147,34 @@ public struct ExternalProviderCLIResolver: @unchecked Sendable {
   }
 }
 
+/// The user's login-shell PATH. CLIs are found through the login shell, so version-manager
+/// shims (asdf, mise) that exec helpers missing from the GUI app's PATH must run with it too.
+public final class LoginShellPATH: @unchecked Sendable {
+  private static let shared = LoginShellPATH()
+  private let lock = NSLock()
+  private var cache: [String: String?] = [:]
+
+  /// Entries from the login shell named by `environment["SHELL"]`, looked up once per shell.
+  public static func entries(environment: [String: String]) -> [String] {
+    guard let shell = environment["SHELL"], FileManager.default.isExecutableFile(atPath: shell) else {
+      return []
+    }
+    return (shared.path(shell: shell) ?? "").split(separator: ":").map(String.init)
+  }
+
+  private func path(shell: String) -> String? {
+    lock.lock()
+    defer { lock.unlock() }
+    if let cached = cache[shell] { return cached }
+    let path = ExternalProviderCLIResolver.lastLoginShellLine(
+      shellURL: URL(fileURLWithPath: shell),
+      command: "/usr/bin/printenv PATH"
+    )
+    cache[shell] = path
+    return path
+  }
+}
+
 public enum ProviderCLIExecutionEnvironment {
   private static let fallbackPath = "/usr/bin:/bin:/usr/sbin:/sbin"
 
@@ -153,6 +185,7 @@ public enum ProviderCLIExecutionEnvironment {
     var result = base
     var seen = Set<String>()
     let entries = [executableURL.deletingLastPathComponent().standardizedFileURL.path]
+      + LoginShellPATH.entries(environment: base)
       + (base["PATH"] ?? fallbackPath).split(separator: ":").map(String.init)
     result["PATH"] = entries
       .filter { !$0.isEmpty && seen.insert($0).inserted }

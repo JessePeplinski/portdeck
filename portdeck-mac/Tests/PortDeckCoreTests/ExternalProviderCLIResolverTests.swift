@@ -141,6 +141,22 @@ func providerExecutionEnvironmentPrependsResolvedExecutableDirectory() {
   #expect(environment["PATH"] == "/custom/bin:/usr/bin")
 }
 
+@Test
+func providerExecutionEnvironmentAddsLoginShellPathBeforeAppPath() throws {
+  let fixture = try ExternalProviderCLIResolverFixture()
+  defer { fixture.remove() }
+  let shellURL = try fixture.makeExecutable(
+    "bin/shell",
+    contents: "#!/bin/sh\nprintf 'login banner\\n/opt/homebrew/bin:/usr/bin\\n'\n"
+  )
+
+  let environment = ProviderCLIExecutionEnvironment.make(
+    executableURL: URL(fileURLWithPath: "/Users/me/.asdf/shims/provider"),
+    base: ["PATH": "/usr/bin:/bin", "SHELL": shellURL.path]
+  )
+  #expect(environment["PATH"] == "/Users/me/.asdf/shims:/opt/homebrew/bin:/usr/bin:/bin")
+}
+
 private final class ExternalProviderCLIResolverFixture {
   let root: URL
 
@@ -150,13 +166,13 @@ private final class ExternalProviderCLIResolverFixture {
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
   }
 
-  func makeExecutable(_ relativePath: String) throws -> URL {
+  func makeExecutable(_ relativePath: String, contents: String = "#!/bin/sh\nexit 0\n") throws -> URL {
     let url = root.appendingPathComponent(relativePath)
     try FileManager.default.createDirectory(
       at: url.deletingLastPathComponent(),
       withIntermediateDirectories: true
     )
-    try Data("#!/bin/sh\nexit 0\n".utf8).write(to: url)
+    try Data(contents.utf8).write(to: url)
     try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
     return url
   }

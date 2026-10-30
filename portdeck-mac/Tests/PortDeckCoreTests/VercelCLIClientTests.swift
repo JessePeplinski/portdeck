@@ -92,6 +92,34 @@ import Testing
   #expect(FileManager.default.isExecutableFile(atPath: cliDirectory.appendingPathComponent("node").path))
 }
 
+@Test func systemVercelRunnerRunsVersionManagerShimWithLoginShellPath() async throws {
+  let fixture = try VercelRunnerFixture()
+  defer { fixture.remove() }
+
+  let loginPath = fixture.root.appendingPathComponent("login/bin")
+  _ = try fixture.makeExecutable(
+    "login/bin/asdf",
+    contents: "#!/bin/sh\nprintf 'Vercel CLI 50.38.1\\n'\n"
+  )
+  let shell = try fixture.makeExecutable(
+    "bin/shell",
+    contents: "#!/bin/sh\nprintf 'login banner\\n\(loginPath.path)\\n'\n"
+  )
+  let shim = try fixture.makeExecutable(
+    "shims/vercel",
+    contents: "#!/bin/sh\nexec asdf exec vercel \"$@\"\n"
+  )
+  let runner = SystemVercelCommandRunner(
+    environment: ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "SHELL": shell.path],
+    bundleResourceURL: nil
+  )
+
+  let result = try await runner.run(executableURL: shim, arguments: ["--version"])
+
+  #expect(result.terminationStatus == 0)
+  #expect(String(data: result.stdout, encoding: .utf8) == "Vercel CLI 50.38.1\n")
+}
+
 @Test func systemVercelRunnerFallsBackToPackagedNodeWithGUIPath() async throws {
   let fixture = try VercelRunnerFixture()
   defer { fixture.remove() }
